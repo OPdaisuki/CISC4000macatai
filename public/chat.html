@@ -1,0 +1,38 @@
+ <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>澳门旅游助手 - 聊天</title>
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <button id="backButton" class="back-button">返回</button>
+    <button id="loginButton" class="login-button">登录</button>
+
+    <div class="chat-container">
+        <div id="chat-box" class="chat-box"></div>
+        <input type="text" id="user-input" class="input-box" placeholder="请输入您的问题...">
+        <button id="sendButton" class="send-button">发送</button>
+    </div>
+
+    <div id="map" class="simple-map"></div>
+    <div id="attractions-container"></div>
+
+    <!-- 登录/注册模态框 -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">登录</h2>
+            <form id="authForm">
+                <input type="text" id="username" placeholder="用户名" required>
+                <input type="password" id="password" placeholder="密码" required>
+                <button type="submit" id="submitAuth">提交</button>
+            </form>
+            <button id="switchAuth">切换到注册</button>
+        </div>
+    </div>
+    
+    <script src="chat.js"></script>
+</body>
+</html>

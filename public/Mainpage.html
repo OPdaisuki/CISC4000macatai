@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>澳门旅游助手</title>
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <header class="header">
+        <h1>欢迎来到澳门旅游助手</h1>
+        <h4>您的旅行智能助手</h4>
+        <button id="exploreButton" class="button1" onclick="window.location.href='chat.html'">开始探索</button>
+    </header>
+    
+    <section class="mission">
+        <h2>我们的使命</h2>
+        <p>澳门旅游助手的使命是为您提供最佳的旅行体验。我们通过使用AI模型来为客户提供有关澳门出游方面的建议和规划。</p>
+    </section>
+
+    <footer>
+        &copy; 2024 澳门旅游助手 | <a href="#">隐私政策</a> | <a href="#">服务条款</a>
+    </footer>
+
+    <script>
+        const exploreButton = document.getElementById('exploreButton');
+        exploreButton.addEventListener('click', () => {
+            window.location.href = 'chat.html';
+        });
+    </script>
+</body>
+</html>
