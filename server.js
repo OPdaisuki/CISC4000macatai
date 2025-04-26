@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const mysql = require('mysql2/promise');
+//const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
 const moment = require('moment');
 const path = require('path');
@@ -13,7 +13,7 @@ app.use(cors({ origin: '*' })); // 临时允许所有跨域请求
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const config = {
+/*const config = {
   amapApiKey: process.env.AMAP_API_KEY,
   dbConfig: {
     host: process.env.DB_HOST,
@@ -21,9 +21,9 @@ const config = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME
   }
-};
+};*/
 // 创建数据库连接池
-const pool = mysql.createPool(config.dbConfig);
+//const pool = mysql.createPool(config.dbConfig);
 
 // 高德地图API请求函数
 async function fetchAmapData(url, params) {
