@@ -12,37 +12,37 @@ let conversationHistory = [];
 // 从服务器端获取 API Key
 // 修改后的完整函数
 async function getApiKey() {
-  try {
-    const cacheBuster = `t=${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    const apiKeyUrl = `/api/get-key?${cacheBuster}`;
-    
-    const response = await fetch(apiKeyUrl);
-    
-    // 强制检查响应是否为 JSON（即使状态码非 200）
-    const contentType = response.headers.get('content-type') || '';
-    let jsonData;
-    if (contentType.includes('application/json')) {
-      jsonData = await response.json();
-    } else {
-      // 非 JSON 响应时，抛出明确错误（避免解析 HTML）
-      const text = await response.text();
-      throw new Error(`非 JSON 响应: ${text.substr(0, 50)}...`);
-    }
+    try {
+        const cacheBuster = `t=${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const apiKeyUrl = `/api/get-key?${cacheBuster}`;
 
-    if (!jsonData.apiKey) {
-      throw new Error(`API 密钥缺失: ${JSON.stringify(jsonData)}`);
-    }
-    return jsonData.apiKey;
+        const response = await fetch(apiKeyUrl);
 
-  } catch (error) {
-    // 优化错误提示，区分网络问题和后端配置问题
-    const isNetworkError = error.name === 'NetworkError';
-    appendMessage('system-message', '系统', 
-      isNetworkError ? '网络连接失败，请检查网络' : 
-      '服务器配置错误，无法获取 API 密钥'
-    );
-    throw error;
-  }
+        // 强制检查响应是否为 JSON（即使状态码非 200）
+        const contentType = response.headers.get('content-type') || '';
+        let jsonData;
+        if (contentType.includes('application/json')) {
+            jsonData = await response.json();
+        } else {
+            // 非 JSON 响应时，抛出明确错误（避免解析 HTML）
+            const text = await response.text();
+            throw new Error(`非 JSON 响应: ${text.substr(0, 50)}...`);
+        }
+
+        if (!jsonData.apiKey) {
+            throw new Error(`API 密钥缺失: ${JSON.stringify(jsonData)}`);
+        }
+        return jsonData.apiKey;
+
+    } catch (error) {
+        // 优化错误提示，区分网络问题和后端配置问题
+        const isNetworkError = error.name === 'NetworkError';
+        appendMessage('system-message', '系统',
+            isNetworkError ? '网络连接失败，请检查网络' :
+                '服务器配置错误，无法获取 API 密钥'
+        );
+        throw error;
+    }
 }
 
 // 增强版 CSV 解析（支持名称+地址）
@@ -89,9 +89,8 @@ async function loadCSVData() {
                 });
             }
         }
-    } 
-    catch (error) {
-        
+    } catch (error) {
+        console.error('CSV 数据加载出错:', error);
     }
 }
 
@@ -218,8 +217,8 @@ async function sendMessage() {
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
                         contentSpan.innerHTML = completeReply
-                            .replace(/\n/g, '<br>')
-                            .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
+                           .replace(/\n/g, '<br>')
+                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
@@ -296,7 +295,7 @@ document.addEventListener('DOMContentLoaded', async () => { // 修改：添加 a
     // 功能绑定
     const backButton = document.getElementById('backButton');
     if (backButton) {
-        backButton.addEventListener('click', () => 
+        backButton.addEventListener('click', () =>
             window.location.href = 'Mainpage.html');
     }
     const sendButton = document.getElementById('sendButton');
@@ -305,11 +304,11 @@ document.addEventListener('DOMContentLoaded', async () => { // 修改：添加 a
     }
     const userInput = document.getElementById('user-input');
     if (userInput) {
-        userInput.addEventListener('keydown', (e) => 
+        userInput.addEventListener('keydown', (e) =>
             e.key === 'Enter' && sendMessage());
     }
 
     // 初始化数据
     await getApiKey();
     await loadCSVData();
-});
+});    
