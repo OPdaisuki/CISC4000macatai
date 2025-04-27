@@ -222,49 +222,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const authForm = document.getElementById('authForm');
 
     // 登录/注册切换
-    loginButton.addEventListener('click', () => authModal.style.display = 'block');
-    closeModal.addEventListener('click', () => authModal.style.display = 'none');
+    if (loginButton) {
+        loginButton.addEventListener('click', () => authModal.style.display = 'block');
+    }
+    if (closeModal) {
+        closeModal.addEventListener('click', () => authModal.style.display = 'none');
+    }
     window.addEventListener('click', (e) => e.target === authModal && (authModal.style.display = 'none'));
 
     // 切换表单类型
-    switchAuth.addEventListener('click', () => {
-        const isLogin = modalTitle.textContent === '登录';
-        modalTitle.textContent = isLogin ? '注册' : '登录';
-        switchAuth.textContent = isLogin ? '切换到登录' : '切换到注册';
-        submitAuth.textContent = isLogin ? '注册' : '登录';
-    });
+    if (switchAuth) {
+        const modalTitle = document.getElementById('modalTitle');
+        const submitAuth = document.getElementById('submitAuth');
+        switchAuth.addEventListener('click', () => {
+            const isLogin = modalTitle.textContent === '登录';
+            modalTitle.textContent = isLogin ? '注册' : '登录';
+            switchAuth.textContent = isLogin ? '切换到登录' : '切换到注册';
+            submitAuth.textContent = isLogin ? '注册' : '登录';
+        });
+    }
 
     // 表单提交
-    authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const isRegister = modalTitle.textContent === '注册';
+    if (authForm) {
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const isRegister = document.getElementById('modalTitle').textContent === '注册';
 
-        try {
-            const response = await fetch(isRegister ? '/register' : '/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
+            try {
+                const response = await fetch(isRegister ? '/register' : '/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
 
-            alert(data.success ? (isRegister ? '注册成功!' : '登录成功!') : data.message);
-            data.success && (authModal.style.display = 'none');
-        } catch (error) {
-            console.error('认证失败:', error);
-            alert('网络异常，请检查连接');
-        }
-    });
+                alert(data.success ? (isRegister ? '注册成功!' : '登录成功!') : data.message);
+                data.success && (authModal.style.display = 'none');
+            } catch (error) {
+                console.error('认证失败:', error);
+                alert('网络异常，请检查连接');
+            }
+        });
+    }
 
     // 功能绑定
-    document.getElementById('backButton').addEventListener('click', () => 
-        window.location.href = 'Mainpage.html');
-    document.getElementById('sendButton').addEventListener('click', sendMessage);
-    document.getElementById('user-input').addEventListener('keydown', (e) => 
-        e.key === 'Enter' && sendMessage());
+    const backButton = document.getElementById('backButton');
+    if (backButton) {
+        backButton.addEventListener('click', () => 
+            window.location.href = 'Mainpage.html');
+    }
+    const sendButton = document.getElementById('sendButton');
+    if (sendButton) {
+        sendButton.addEventListener('click', sendMessage);
+    }
+    const userInput = document.getElementById('user-input');
+    if (userInput) {
+        userInput.addEventListener('keydown', (e) => 
+            e.key === 'Enter' && sendMessage());
+    }
 
     // 初始化数据
     await getApiKey();
