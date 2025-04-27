@@ -6,7 +6,8 @@ const moment = require('moment');
 const path = require('path');
 
 const app = express();
-const port = 3000;
+// 从环境变量中获取端口号，如果没有则使用默认值 3000
+const port = process.env.PORT || 3000;
 
 // 修改静态文件中间件配置
 app.use(cors({ origin: '*' })); // 临时允许所有跨域请求
@@ -24,6 +25,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 };*/
 // 创建数据库连接池
 //const pool = mysql.createPool(config.dbConfig);
+
+// 从环境变量中获取 API Key
+const apiKey = process.env.SILICONFLOW_API_KEY;
+
+// 创建一个 API 端点来返回 API Key
+app.get('/get-api-key', (req, res) => {
+    res.json({ apiKey });
+});
 
 // 高德地图API请求函数
 async function fetchAmapData(url, params) {
@@ -90,6 +99,6 @@ app.get('/api/nearby-restaurants', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`✅ 服务器已启动: http://localhost:3000`);
-  console.log(`📂 静态文件目录: ${__dirname}`); // 显示根目录路径
+    console.log(`✅ 服务器已启动: http://localhost:${port}`);
+    console.log(`📂 静态文件目录: ${__dirname}`); 
 });
