@@ -1,5 +1,5 @@
 // 硅基流动 API Key
-const apiKey = process.env.SILICONFLOW_API_KEY; // 由 Render 环境变量注入
+let apiKey;
 //const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
 const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
 
@@ -8,6 +8,18 @@ let diningData = [];
 let scenicData = [];
 let accommodationData = [];
 let conversationHistory = [];
+
+// 从服务器端获取 API Key
+async function getApiKey() {
+    try {
+        const response = await fetch('/get-api-key');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        apiKey = data.apiKey;
+    } catch (error) {
+        console.error('Failed to get API key:', error);
+    }
+}
 
 // 增强版 CSV 解析（支持名称+地址）
 async function loadCSVData() {
@@ -255,5 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.key === 'Enter' && sendMessage());
 
     // 初始化数据
-    loadCSVData();
+    await getApiKey();
+    await loadCSVData();
 });
