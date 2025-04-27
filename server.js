@@ -16,6 +16,12 @@ app.use(express.json());
 app.use('/api', require('./dst_api_service')); // 添加API路由
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 在所有路由后添加错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('全局错误:', err.stack);
+  res.status(500).json({ error: '内部服务器错误' });
+});
+
 /*const config = {
   amapApiKey: process.env.AMAP_API_KEY,
   dbConfig: {
