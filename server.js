@@ -10,8 +10,10 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // 修改静态文件中间件配置
-app.use(cors({ origin: '*' })); // 临时允许所有跨域请求
+// server.js 修改中间件顺序
+app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use('/api', require('./dst_api_service')); // 添加API路由
 app.use(express.static(path.join(__dirname, 'public')));
 
 /*const config = {
