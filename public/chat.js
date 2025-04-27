@@ -13,48 +13,38 @@ let conversationHistory = [];
 // 修改后的完整函数
 async function getApiKey() {
   try {
-    // 添加随机参数防止浏览器缓存
     const cacheBuster = `t=${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const apiKeyUrl = `/api/get-key?${cacheBuster}`;
     
-    console.log('[Frontend] 开始请求API密钥:', apiKeyUrl);
     const response = await fetch(apiKeyUrl);
     
-    // 打印详细响应信息
-    console.log('[Frontend] 响应状态码:', response.status);
-    console.log('[Frontend] 响应头:', [...response.headers.entries()]);
-
-    // 检查内容类型
+    // 强制检查响应是否为 JSON（即使状态码非 200）
     const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const textData = await response.text();
-      console.error('[Frontend] 非JSON响应内容:', textData.slice(0, 200));
-      throw new Error(`服务器返回异常格式 (${contentType})`);
+    let jsonData;
+    if (contentType.includes('application/json')) {
+      jsonData = await response.json();
+    } else {
+      // 非 JSON 响应时，抛出明确错误（避免解析 HTML）
+      const text = await response.text();
+      throw new Error(`非 JSON 响应: ${text.substr(0, 50)}...`);
     }
 
-    // 解析JSON数据
-    const jsonData = await response.json();
     if (!jsonData.apiKey) {
-      throw new Error('API密钥字段缺失');
+      throw new Error(`API 密钥缺失: ${JSON.stringify(jsonData)}`);
     }
-    
-    console.log('[Frontend] 成功获取API密钥');
     return jsonData.apiKey;
 
   } catch (error) {
-    // 结构化错误日志
-    const errorInfo = {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    };
-    console.error('[Frontend] 密钥获取全链路失败:', JSON.stringify(errorInfo, null, 2));
-    
-    // 用户提示
-    appendMessage('system-message', '系统', '服务初始化失败，请检查网络连接后刷新页面 🚨');
-    throw error; // 阻止后续初始化
+    // 优化错误提示，区分网络问题和后端配置问题
+    const isNetworkError = error.name === 'NetworkError';
+    appendMessage('system-message', '系统', 
+      isNetworkError ? '网络连接失败，请检查网络' : 
+      '服务器配置错误，无法获取 API 密钥'
+    );
+    throw error;
   }
 }
+
 // 增强版 CSV 解析（支持名称+地址）
 async function loadCSVData() {
     try {
