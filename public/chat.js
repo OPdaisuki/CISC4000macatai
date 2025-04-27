@@ -213,7 +213,7 @@ async function sendMessage() {
 }
 
 // 完整页面初始化逻辑
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => { // 修改：添加 async 关键字
     // 用户交互组件
     const authModal = document.getElementById('authModal');
     const loginButton = document.getElementById('loginButton');
