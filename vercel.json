@@ -1,4 +1,4 @@
-// vercel.json
+
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
