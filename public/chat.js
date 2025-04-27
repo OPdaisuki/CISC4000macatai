@@ -1,7 +1,7 @@
 // 硅基流动 API Key
 let apiKey;
 //const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
-const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
+const apiUrl = 'https://api.siliconflow.cn/v1';
 
 // 存储 CSV 文件内容（增强版含地址）
 let diningData = [];
