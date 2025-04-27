@@ -29,9 +29,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 从环境变量中获取 API Key
 const apiKey = process.env.SILICONFLOW_API_KEY;
 
-// 创建一个 API 端点来返回 API Key
-app.get('/get-api-key', (req, res) => {
-    res.json({ apiKey });
+// server.js 新增以下内容
+app.get('/api/get-key', (req, res) => {
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API密钥未配置' });
+  }
+  res.json({ apiKey });
 });
 
 // 高德地图API请求函数
