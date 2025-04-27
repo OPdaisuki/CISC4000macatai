@@ -1,7 +1,19 @@
-
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/Mainpage.html" }
+    { 
+      "source": "/api/(.*)", 
+      "destination": "/api/$1" 
+    },
+    { 
+      "source": "/(.*)", 
+      "destination": "/Mainpage.html" 
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/.*",
+      "dest": "/server.js",
+      "methods": ["GET", "POST"]
+    }
   ]
 }
