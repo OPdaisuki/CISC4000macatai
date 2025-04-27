@@ -1,3 +1,9 @@
+// 在server.js顶部添加检查
+console.log('环境变量检查:', {
+  NODE_ENV: process.env.NODE_ENV,
+  API_KEY_LOADED: !!process.env.SILICONFLOW_API_KEY
+});
+
 // server.js 中间件和路由的正确顺序
 const express = require('express');
 const cors = require('cors');
@@ -9,6 +15,12 @@ const port = process.env.PORT || 3000;
 // ========== 中间件配置 ==========
 app.use(cors({ origin: '*' }));      // 1. 跨域处理
 app.use(express.json());             // 2. JSON解析
+
+// 在server.js中添加调试中间件
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
 // ========== API路由配置 ==========
 // 3. 硅基流动API密钥接口
