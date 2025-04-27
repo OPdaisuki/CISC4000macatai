@@ -11,16 +11,18 @@ let conversationHistory = [];
 
 // 从服务器端获取 API Key
 // chat.js 修改getApiKey函数
+// chat.js 中修改getApiKey函数
 async function getApiKey() {
   try {
     const response = await fetch('/api/get-key');
-    const text = await response.text();
     
-    // 调试输出
-    console.log('API响应内容:', text);
+    // 添加响应状态检查
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP ${response.status}: ${text}`);
+    }
     
-    const data = JSON.parse(text);
-    if (!data.apiKey) throw new Error('无效的API密钥格式');
+    const data = await response.json();
     return data.apiKey;
   } catch (error) {
     console.error('API密钥获取失败:', error);
@@ -28,7 +30,6 @@ async function getApiKey() {
     throw error;
   }
 }
-
 // 增强版 CSV 解析（支持名称+地址）
 async function loadCSVData() {
     try {
