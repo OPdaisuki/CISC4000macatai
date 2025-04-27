@@ -10,8 +10,6 @@ let accommodationData = [];
 let conversationHistory = [];
 
 // 从服务器端获取 API Key
-// chat.js 修改getApiKey函数
-// chat.js 中修改getApiKey函数
 async function getApiKey() {
   try {
     const response = await fetch('/api/get-key');
