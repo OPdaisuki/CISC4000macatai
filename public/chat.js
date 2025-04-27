@@ -10,15 +10,23 @@ let accommodationData = [];
 let conversationHistory = [];
 
 // 从服务器端获取 API Key
+// chat.js 修改getApiKey函数
 async function getApiKey() {
-    try {
-        const response = await fetch('/get-api-key');
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        apiKey = data.apiKey;
-    } catch (error) {
-        console.error('Failed to get API key:', error);
-    }
+  try {
+    const response = await fetch('/api/get-key');
+    const text = await response.text();
+    
+    // 调试输出
+    console.log('API响应内容:', text);
+    
+    const data = JSON.parse(text);
+    if (!data.apiKey) throw new Error('无效的API密钥格式');
+    return data.apiKey;
+  } catch (error) {
+    console.error('API密钥获取失败:', error);
+    appendMessage('system-message', '系统', '服务初始化失败，请刷新重试 🔄');
+    throw error;
+  }
 }
 
 // 增强版 CSV 解析（支持名称+地址）
