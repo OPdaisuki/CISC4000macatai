@@ -22,8 +22,34 @@ app.use((req, res, next) => {
   next();
 });
 
+// 在server.js中添加安全中间件
+app.set('trust proxy', 1); // 修正Vercel代理问题
+
+// 严格限制跨域（根据前端域名调整）
+const allowedOrigins = ['https://cisc-4000macatai.vercel.app'];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('跨域请求被拦截'));
+    }
+  }
+}));
+
 // ========== API路由配置 ==========
 // 3. 硅基流动API密钥接口
+// 在/api/get-key路由前添加测试接口
+app.get('/api/debug', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    envCheck: {
+      nodeEnv: process.env.NODE_ENV,
+      apiKeyExists: !!process.env.SILICONFLOW_API_KEY
+    }
+  });
+});
+
 app.get('/api/get-key', (req, res) => {
   const apiKey = process.env.SILICONFLOW_API_KEY;
   if (!apiKey) {
