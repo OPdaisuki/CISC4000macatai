@@ -10,22 +10,49 @@ let accommodationData = [];
 let conversationHistory = [];
 
 // 从服务器端获取 API Key
+// 修改后的完整函数
 async function getApiKey() {
   try {
-    const response = await fetch('/api/get-key');
+    // 添加随机参数防止浏览器缓存
+    const cacheBuster = `t=${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const apiKeyUrl = `/api/get-key?${cacheBuster}`;
     
-    // 添加响应状态检查
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`HTTP ${response.status}: ${text}`);
+    console.log('[Frontend] 开始请求API密钥:', apiKeyUrl);
+    const response = await fetch(apiKeyUrl);
+    
+    // 打印详细响应信息
+    console.log('[Frontend] 响应状态码:', response.status);
+    console.log('[Frontend] 响应头:', [...response.headers.entries()]);
+
+    // 检查内容类型
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const textData = await response.text();
+      console.error('[Frontend] 非JSON响应内容:', textData.slice(0, 200));
+      throw new Error(`服务器返回异常格式 (${contentType})`);
+    }
+
+    // 解析JSON数据
+    const jsonData = await response.json();
+    if (!jsonData.apiKey) {
+      throw new Error('API密钥字段缺失');
     }
     
-    const data = await response.json();
-    return data.apiKey;
+    console.log('[Frontend] 成功获取API密钥');
+    return jsonData.apiKey;
+
   } catch (error) {
-    console.error('API密钥获取失败:', error);
-    appendMessage('system-message', '系统', '服务初始化失败，请刷新重试 🔄');
-    throw error;
+    // 结构化错误日志
+    const errorInfo = {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    };
+    console.error('[Frontend] 密钥获取全链路失败:', JSON.stringify(errorInfo, null, 2));
+    
+    // 用户提示
+    appendMessage('system-message', '系统', '服务初始化失败，请检查网络连接后刷新页面 🚨');
+    throw error; // 阻止后续初始化
   }
 }
 // 增强版 CSV 解析（支持名称+地址）
