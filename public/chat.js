@@ -1,6 +1,6 @@
 // 硅基流动 API Key
-let apiKey;
-//const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
+//const apiKey = process.env.SILICONFLOW_API_KEY; // 由 Render 环境变量注入
+const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
 const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
 
 // 存储 CSV 文件内容（增强版含地址）
@@ -8,42 +8,6 @@ let diningData = [];
 let scenicData = [];
 let accommodationData = [];
 let conversationHistory = [];
-
-// 从服务器端获取 API Key
-// 修改后的完整函数
-async function getApiKey() {
-    try {
-        const cacheBuster = `t=${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-        const apiKeyUrl = `/api/get-key?${cacheBuster}`;
-
-        const response = await fetch(apiKeyUrl);
-
-        // 强制检查响应是否为 JSON（即使状态码非 200）
-        const contentType = response.headers.get('content-type') || '';
-        let jsonData;
-        if (contentType.includes('application/json')) {
-            jsonData = await response.json();
-        } else {
-            // 非 JSON 响应时，抛出明确错误（避免解析 HTML）
-            const text = await response.text();
-            throw new Error(`非 JSON 响应: ${text.substr(0, 50)}...`);
-        }
-
-        if (!jsonData.apiKey) {
-            throw new Error(`API 密钥缺失: ${JSON.stringify(jsonData)}`);
-        }
-        return jsonData.apiKey;
-
-    } catch (error) {
-        // 优化错误提示，区分网络问题和后端配置问题
-        const isNetworkError = error.name === 'NetworkError';
-        appendMessage('system-message', '系统',
-            isNetworkError ? '网络连接失败，请检查网络' :
-                '服务器配置错误，无法获取 API 密钥'
-        );
-        throw error;
-    }
-}
 
 // 增强版 CSV 解析（支持名称+地址）
 async function loadCSVData() {
@@ -89,8 +53,9 @@ async function loadCSVData() {
                 });
             }
         }
-    } catch (error) {
-        console.error('CSV 数据加载出错:', error);
+    } 
+    catch (error) {
+        console.error('CSV 数据加载失败:', error);
     }
 }
 
@@ -217,8 +182,8 @@ async function sendMessage() {
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
                         contentSpan.innerHTML = completeReply
-                           .replace(/\n/g, '<br>')
-                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
+                            .replace(/\n/g, '<br>')
+                            .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
@@ -236,79 +201,82 @@ async function sendMessage() {
 }
 
 // 完整页面初始化逻辑
-document.addEventListener('DOMContentLoaded', async () => { // 修改：添加 async 关键字
+document.addEventListener('DOMContentLoaded', () => {
     // 用户交互组件
     const authModal = document.getElementById('authModal');
     const loginButton = document.getElementById('loginButton');
     const closeModal = document.querySelector('.close');
     const switchAuth = document.getElementById('switchAuth');
     const authForm = document.getElementById('authForm');
+    const modalTitle = document.getElementById('modalTitle');
+    const submitAuth = document.getElementById('submitAuth');
+
+    // 检查元素是否存在
+    if (!authModal || !loginButton || !closeModal || !switchAuth || !authForm || !modalTitle || !submitAuth) {
+        console.error('部分认证相关元素未找到，请检查 HTML 结构。');
+        return;
+    }
 
     // 登录/注册切换
-    if (loginButton) {
-        loginButton.addEventListener('click', () => authModal.style.display = 'block');
-    }
-    if (closeModal) {
-        closeModal.addEventListener('click', () => authModal.style.display = 'none');
-    }
+    loginButton.addEventListener('click', () => authModal.style.display = 'block');
+    closeModal.addEventListener('click', () => authModal.style.display = 'none');
     window.addEventListener('click', (e) => e.target === authModal && (authModal.style.display = 'none'));
 
     // 切换表单类型
-    if (switchAuth) {
-        const modalTitle = document.getElementById('modalTitle');
-        const submitAuth = document.getElementById('submitAuth');
-        switchAuth.addEventListener('click', () => {
-            const isLogin = modalTitle.textContent === '登录';
-            modalTitle.textContent = isLogin ? '注册' : '登录';
-            switchAuth.textContent = isLogin ? '切换到登录' : '切换到注册';
-            submitAuth.textContent = isLogin ? '注册' : '登录';
-        });
-    }
+    switchAuth.addEventListener('click', () => {
+        const isLogin = modalTitle.textContent === '登录';
+        modalTitle.textContent = isLogin ? '注册' : '登录';
+        switchAuth.textContent = isLogin ? '切换到登录' : '切换到注册';
+        submitAuth.textContent = isLogin ? '注册' : '登录';
+    });
 
     // 表单提交
-    if (authForm) {
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const isRegister = document.getElementById('modalTitle').textContent === '注册';
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username');
+        const password = document.getElementById('password');
 
-            try {
-                const response = await fetch(isRegister ? '/register' : '/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
+        // 检查输入元素是否存在
+        if (!username || !password) {
+            console.error('用户名或密码输入元素未找到，请检查 HTML 结构。');
+            return;
+        }
 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
+        const isRegister = modalTitle.textContent === '注册';
 
-                alert(data.success ? (isRegister ? '注册成功!' : '登录成功!') : data.message);
-                data.success && (authModal.style.display = 'none');
-            } catch (error) {
-                console.error('认证失败:', error);
-                alert('网络异常，请检查连接');
-            }
-        });
-    }
+        try {
+            const response = await fetch(isRegister ? '/register' : '/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username.value, password: password.value })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+
+            alert(data.success ? (isRegister ? '注册成功!' : '登录成功!') : data.message);
+            data.success && (authModal.style.display = 'none');
+        } catch (error) {
+            console.error('认证失败:', error);
+            alert('网络异常，请检查连接');
+        }
+    });
 
     // 功能绑定
     const backButton = document.getElementById('backButton');
-    if (backButton) {
-        backButton.addEventListener('click', () =>
-            window.location.href = 'Mainpage.html');
-    }
     const sendButton = document.getElementById('sendButton');
-    if (sendButton) {
-        sendButton.addEventListener('click', sendMessage);
-    }
     const userInput = document.getElementById('user-input');
-    if (userInput) {
-        userInput.addEventListener('keydown', (e) =>
-            e.key === 'Enter' && sendMessage());
+
+    // 检查按钮和输入框是否存在
+    if (!backButton || !sendButton || !userInput) {
+        console.error('部分功能按钮或输入框未找到，请检查 HTML 结构。');
+        return;
     }
 
+    backButton.addEventListener('click', () => window.location.href = 'Mainpage.html');
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => e.key === 'Enter' && sendMessage());
+
     // 初始化数据
-    await getApiKey();
-    await loadCSVData();
-});    
+    loadCSVData();
+});
