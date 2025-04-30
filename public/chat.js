@@ -97,15 +97,91 @@ async function sendMessage() {
 
     try {
         const loadingMsg = appendMessage('ai-message loading', 'AI助手', '正在规划路线... ⌛');
-
-        // 生成公交路线指引模板
+    
+        // 1. 保留原有数据加载（假设来自CSV/数据库）
+        const scenicData = [
+            { name: '澳门塔', address: '澳门半岛', feature: '高空观光', rating: '4.5星', advantage: '俯瞰澳门全景' },
+            { name: '大三巴牌坊', address: '澳门半岛', feature: '历史遗迹', rating: '4.8星', advantage: '澳门标志性建筑' }
+        ];
+        const accommodationData = [
+            { name: '威尼斯人酒店', address: '路氹城', transportation: '25B、26、MT4路 + 免费接驳车', advantage: '豪华度假酒店' },
+            { name: '巴黎人酒店', address: '路氹城', transportation: '25B、26、MT4路 + 免费接驳车', advantage: '浪漫法式风格' }
+        ];
+        const diningData = [
+            { name: '安德鲁蛋挞', address: '路环', transportation: '步行可达', advantage: '澳门特色美食' },
+            { name: '玛嘉烈蛋挞', address: '澳门半岛', transportation: '步行可达', advantage: '经典葡挞' }
+        ];
+    
+        // 2. 新增RAG检索（补充或覆盖实时数据）
+        const ragResponse = await fetch('/api/rag-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: message })
+        });
+        const { relevantDocs } = await ragResponse.json();
+    
+        // 3. 定义数据提取函数（根据XML解析后的文档格式调整）
+        function extractInfo(doc) {
+            // 假设文档格式："名称：澳门塔, 地址：澳门半岛, 特色：高空观光"
+            return {
+                name: doc.match(/名称：(.*?)(?=,|$)/)[1] || '',
+                address: doc.match(/地址：(.*?)(?=,|$)/)[1] || '',
+                type: doc.includes('酒店')? '住宿' : doc.includes('景点')? '景点' : '餐饮'
+            };
+        }
+    
+        // 4. 合并数据（RAG结果优先级高于原有数据）
+        const mergedScenicData = [
+          ...scenicData, // 原有景点
+          ...relevantDocs.filter(doc => doc.includes('景点')).map(extractInfo) // RAG新增景点
+        ].filter((v, i, a) => a.findIndex(item => item.name === v.name) === i); // 去重
+    
+        const mergedAccommodationData = [
+          ...accommodationData,
+          ...relevantDocs.filter(doc => doc.includes('酒店')).map(extractInfo)
+        ].filter((v, i, a) => a.findIndex(item => item.name === v.name) === i);
+    
+        const mergedDiningData = [
+          ...diningData,
+          ...relevantDocs.filter(doc => doc.includes('餐厅')).map(extractInfo)
+        ].filter((v, i, a) => a.findIndex(item => item.name === v.name) === i);
+    
+        // 5. 构建系统提示（同时包含原有和RAG数据）
         const busGuidelines = `澳门公交参考：
         - 历史城区（大三巴/议事亭）：3、3X、6A、26A 路
         - 路氹酒店区：25B、26、MT4 路 + 免费接驳车
         - 机场/码头：AP1、AP1X 路
         - 夜间路线：N1A、N3 路
         注：酒店接驳车通常免费且班次密集`;
-
+    
+        const systemContent = `作为澳门旅游专家，请严格按此流程响应：
+        1. 必打卡景点（从以下选择）：${mergedScenicData.map(x => x.name).join(', ')}
+          格式：
+          - 名称：{名称}
+          - 特色：{15字内亮点}
+          - 地址：{精确地址}
+          - 交通：{根据地址生成的公交路线}
+          - 推荐：{评分+优势}
+    
+        2. 亲子娱乐（从以下选择）：${mergedScenicData.filter(x => x.feature.includes('亲子')).map(x => x.name).join(', ')}
+          格式同上
+    
+        3. 附近住宿（从以下推荐）：${mergedAccommodationData.map(x => x.name).join(', ')}
+          - 名称：{酒店}（地址：{地址}）
+          - 交通：{公交/接驳车建议}
+    
+        4. 附近餐饮（从以下推荐）：${mergedDiningData.map(x => x.name).join(', ')}
+          - 名称：{餐厅}（地址：{地址}）
+          - 交通：{步行/公交指引}
+    
+        公交生成规则：
+        ${busGuidelines}
+    
+        要求：
+        • 使用口语化中文，避免专业术语
+        • 每个推荐必须包含交通信息
+        • 地址必须来自用户提供的数据`;
+    
         const options = {
             method: 'POST',
             headers: {
@@ -116,36 +192,10 @@ async function sendMessage() {
                 model: 'Pro/deepseek-ai/DeepSeek-R1',
                 messages: [
                     {
-                        role: 'system',
-                        content: `作为澳门旅游专家，请严格按此流程响应：
-                        1. 必打卡景点（从以下选择）：${scenicData.map(x => x.name).join(', ')}
-                          格式：
-                          - 名称：{名称}
-                          - 特色：{15字内亮点}
-                          - 地址：{精确地址}
-                          - 交通：{根据地址生成的公交路线}
-                          - 推荐：{评分+优势}
-
-                        2. 亲子娱乐（从娱乐场所选择）
-                          格式同上
-
-                        3. 附近住宿（从以下推荐）：${accommodationData.map(x => x.name).join(', ')}
-                          - 名称：{酒店}（地址：{地址}）
-                          - 交通：{公交/接驳车建议}
-
-                        4. 附近餐饮（从以下推荐）：${diningData.map(x => x.name).join(', ')}
-                          - 名称：{餐厅}（地址：{地址}）
-                          - 交通：{步行/公交指引}
-
-                        公交生成规则：
-                        ${busGuidelines}
-                        
-                        要求：
-                        • 使用口语化中文，避免专业术语
-                        • 每个推荐必须包含交通信息
-                        • 地址必须来自用户提供的数据`
+                        role:'system',
+                        content: systemContent
                     },
-                    ...conversationHistory
+                   ...conversationHistory
                 ],
                 stream: true,
                 max_tokens: 4096,
@@ -153,37 +203,37 @@ async function sendMessage() {
                 top_p: 0.85
             })
         };
-
+    
         const response = await fetch(apiUrl, options);
         if (!response.ok) throw new Error(`请求失败: ${response.status}`);
-
+    
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let completeReply = '';
         loadingMsg.remove();
-
+    
         const aiMessageDiv = appendMessage('ai-message', 'AI助手', '');
         const contentSpan = aiMessageDiv.querySelector('.content');
-
+    
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
+    
             const chunk = decoder.decode(value, { stream: true });
             const lines = chunk.split('\n').filter(l => l.trim());
-
+    
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6);
                     if (data === '[DONE]') break;
-
+    
                     try {
                         const jsonData = JSON.parse(data);
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
                         contentSpan.innerHTML = completeReply
-                            .replace(/\n/g, '<br>')
-                            .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
+                           .replace(/\n/g, '<br>')
+                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
@@ -191,9 +241,9 @@ async function sendMessage() {
                 }
             }
         }
-
+    
         conversationHistory.push({ role: 'assistant', content: completeReply });
-
+    
     } catch (error) {
         console.error('请求异常:', error);
         appendMessage('system-message', '系统', '服务繁忙，请稍后重试 ⚠️');
