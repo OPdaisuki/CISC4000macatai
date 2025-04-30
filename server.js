@@ -1,3 +1,5 @@
+const { initRag, searchRag } = require('./rag.js'); // 添加这行
+
 const express = require('express');
 const cors = require('cors');
 //const mysql = require('mysql2/promise');
@@ -7,6 +9,12 @@ const path = require('path');
 
 const app = express();
 const port = 3000;
+
+// 初始化RAG（服务器启动时加载数据）
+( async () => {
+  await initRag();
+  console.log('RAG数据加载完成');
+})();
 
 // 修改静态文件中间件配置
 app.use(cors({ origin: '*' })); // 临时允许所有跨域请求
@@ -22,6 +30,14 @@ const config = {
     database: process.env.DB_NAME
   }
 };
+
+// 新增RAG检索接口
+app.post('/api/rag-search', (req, res) => {
+  const { query } = req.body;
+  const relevantDocs = searchRag(query).map(doc => doc.text);
+  res.json({ relevantDocs });
+});
+
 // 创建数据库连接池
 //const pool = mysql.createPool(config.dbConfig);
 
@@ -88,6 +104,7 @@ app.get('/api/nearby-restaurants', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 app.listen(port, () => {
   console.log(`✅ 服务器运行中: http://localhost:${port}`);
