@@ -275,3 +275,18 @@ footer a:hover {
     60% { content: '...'; }
     80%, 100% { content: ''; }
   }
+
+.user-message {
+    background-color: #cce5ff;
+    align-self: flex-end;
+    text-align: right;
+    border-top-right-radius: 0;
+    color: #003366;
+}
+
+.ai-message {
+    background-color: #e0ecff;
+    align-self: flex-start;
+    border-top-left-radius: 0;
+    color: #003366;
+}
