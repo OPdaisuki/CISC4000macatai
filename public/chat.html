@@ -5,17 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>澳门旅游助手 - 聊天</title>
     <link rel="stylesheet" href="main.css">
-    <style>
-    body {
-        background: url('https://upload.wikimedia.org/wikipedia/commons/7/74/Ruins_of_St._Paul%27s%2C_Macau.jpg') no-repeat center center fixed;
-        background-size: cover;
-        color: #003366;
-    }
-    </style>
 </head>
 <body>
-    <button id="backButton" class="back-button">返回</button>
-    <button id="loginButton" class="login-button">登录</button>
+    <button id="backButton" class="back-button">返回 / Back</button>
+    <button id="loginButton" class="login-button">登录 / Login</button>
+
+    <!-- 登录/注册模态框 -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">登录 / Login</h2>
+            <form id="authForm">
+                <input type="text" id="username" placeholder="用户名 / Username" required>
+                <input type="password" id="password" placeholder="密码 / Password" required>
+                <button type="submit" id="submitAuth">提交 / Submit</button>
+            </form>
+            <button id="switchAuth">切换到注册 / Switch to Register</button>
+        </div>
+    </div>
 
     <div class="chat-container">
         <div id="chat-box" class="chat-box"></div>
@@ -27,21 +34,6 @@
 
     <div id="map" class="simple-map"></div>
     <div id="attractions-container"></div>
-
-    <!-- 登录/注册模态框 -->
-    <div id="authModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 id="modalTitle">登录</h2>
-            <form id="authForm">
-                <input type="text" id="username" placeholder="用户名" required>
-                <input type="password" id="password" placeholder="密码" required>
-                <button type="submit" id="submitAuth">提交</button>
-            </form>
-            <button id="switchAuth">切换到注册</button>
-        </div>
-    </div>
-    
     <script src="chat.js"></script>
 </body>
 </html>
