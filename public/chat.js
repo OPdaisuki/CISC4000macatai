@@ -165,6 +165,9 @@ async function sendMessage() {
         const aiMessageDiv = appendMessage('ai-message', 'AI助手', '');
         const contentSpan = aiMessageDiv.querySelector('.content');
 
+        // 获取 chat-box 元素
+        const chatBox = document.getElementById('chat-box');
+        
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
