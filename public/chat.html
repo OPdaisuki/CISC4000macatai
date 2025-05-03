@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>澳门旅游助手 - 聊天</title>
     <link rel="stylesheet" href="main.css">
+    <style>
+    body {
+        background: url('https://upload.wikimedia.org/wikipedia/commons/7/74/Ruins_of_St._Paul%27s%2C_Macau.jpg') no-repeat center center fixed;
+        background-size: cover;
+        color: #003366;
+    }
+    </style>
 </head>
 <body>
     <button id="backButton" class="back-button">返回</button>
@@ -12,8 +19,10 @@
 
     <div class="chat-container">
         <div id="chat-box" class="chat-box"></div>
-        <input type="text" id="user-input" class="input-box" placeholder="请输入您的问题...">
-        <button id="sendButton" class="send-button">发送</button>
+        <div class="input-area">
+            <input type="text" id="user-input" class="input-box" placeholder="请输入您的问题...">
+            <button id="sendButton" class="send-button">发送</button>
+        </div>
     </div>
 
     <div id="map" class="simple-map"></div>
