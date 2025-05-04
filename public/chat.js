@@ -171,12 +171,16 @@ async function sendMessage() {
         // 获取 chat-box 元素
         const chatBox = document.getElementById('chat-box');
 
+        let buffer = ''; // 新增缓冲区，用于拼接数据
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(l => l.trim());
+            buffer += chunk; // 将新数据追加到缓冲区
+
+            const lines = buffer.split('\n').filter(l => l.trim());
+            buffer = lines.pop() || ''; // 保留未完整的行到缓冲区
 
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
@@ -286,4 +290,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 初始化数据
     loadCSVData();
 });
-    
