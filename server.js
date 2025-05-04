@@ -19,7 +19,13 @@ const port = 3000;
 // 修改静态文件中间件配置
 app.use(cors({ origin: '*' })); // 临时允许所有跨域请求
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'text/javascript');
+        }
+    }
+}));
 
 const config = {
   amapApiKey: process.env.AMAP_API_KEY,
