@@ -171,34 +171,28 @@ async function sendMessage() {
         // 获取 chat-box 元素
         const chatBox = document.getElementById('chat-box');
 
-        let buffer = '';
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-        
+
             const chunk = decoder.decode(value, { stream: true });
-            buffer += chunk;
-        
-            const lines = buffer.split('\n').filter(l => l.trim());
-            buffer = lines.pop() || '';
-        
+            const lines = chunk.split('\n').filter(l => l.trim());
+
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6);
                     if (data === '[DONE]') break;
-        
+
                     try {
-                        // 确保每个 data 块单独解析
                         const jsonData = JSON.parse(data);
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
                         contentSpan.innerHTML = completeReply
                            .replace(/\n/g, '<br>')
-                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>');
+                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
-                        console.log('异常数据:', data);
                     }
                 }
             }
