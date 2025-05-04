@@ -171,34 +171,34 @@ async function sendMessage() {
         // 获取 chat-box 元素
         const chatBox = document.getElementById('chat-box');
 
-        let buffer = ''; // 新增缓冲区，用于拼接数据
+        let buffer = '';
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
+        
             const chunk = decoder.decode(value, { stream: true });
-            buffer += chunk; // 将新数据追加到缓冲区
-
+            buffer += chunk;
+        
             const lines = buffer.split('\n').filter(l => l.trim());
-            buffer = lines.pop() || ''; // 保留未完整的行到缓冲区
-
+            buffer = lines.pop() || '';
+        
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6);
                     if (data === '[DONE]') break;
-
+        
                     try {
-                        // 验证数据是否为有效的 JSON 格式
+                        // 确保每个 data 块单独解析
                         const jsonData = JSON.parse(data);
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
                         contentSpan.innerHTML = completeReply
                            .replace(/\n/g, '<br>')
-                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
+                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>');
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
-                        console.log('异常数据:', data); // 打印异常数据以便调试
+                        console.log('异常数据:', data);
                     }
                 }
             }
