@@ -1,8 +1,8 @@
-const fs = require('fs');
-const xml2js = require('xml2js');
-const Excel = require('exceljs');
-const { pipeline } = require('@xenova/transformers');
-const faiss = require('faiss-node');
+import fs from 'fs';
+import xml2js from 'xml2js';
+import Excel from 'exceljs';
+import { pipeline } from '@xenova/transformers';
+import faiss from 'faiss-node';
 
 let model;
 let index;
@@ -145,7 +145,7 @@ async function searchRag(query, topK = 3) {
     return indices[0].map(i => chunks[i]).filter((_, idx) => distances[0][idx] < 0.8);
 }
 
-module.exports = {
+exports = {
     initRag,
     searchRag
 };
