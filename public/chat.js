@@ -3,7 +3,7 @@
 const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
 const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
 // 修改为 ES6 模块导入语法
-import { initRag, searchRag } from '../rag.js';  // rag引入
+import { initRag, searchRag } from './rag.js';  // rag引入
 
 // 存储 CSV 文件内容（增强版含地址）
 let diningData = [];
