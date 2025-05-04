@@ -2,7 +2,7 @@
 //const apiKey = process.env.SILICONFLOW_API_KEY; // 由 Render 环境变量注入
 const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
 const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
-
+const { initRag, searchRag } = require('./rag.js'); // rag引入
 // 存储 CSV 文件内容（增强版含地址）
 let diningData = [];
 let scenicData = [];
@@ -96,6 +96,8 @@ async function sendMessage() {
     conversationHistory.push({ role: 'user', content: message });
 
     try {
+        const relevantChunks = await searchRag(message, 3); // 获取前 3 个相关数据块
+        const context = relevantChunks.map(chunk => chunk.text).join('\n');
         const loadingMsg = appendMessage('ai-message loading', 'AI助手', '正在规划路线... ⌛');
 
         // 生成公交路线指引模板
@@ -204,7 +206,15 @@ async function sendMessage() {
 }
 
 // 完整页面初始化逻辑
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. 初始化 RAG 系统（新增代码）
+    try {
+        await initRag(); // 调用 rag.js 中的初始化函数
+        console.log('✅ RAG 系统初始化完成，知识库已加载');
+    } catch (error) {
+        console.error('❌ RAG 初始化失败:', error);
+        alert('知识库加载失败，部分功能可能受限');
+    }
     // 用户交互组件
     const authModal = document.getElementById('authModal');
     const loginButton = document.getElementById('loginButton');
