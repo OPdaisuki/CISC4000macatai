@@ -190,7 +190,26 @@ app.use((req, res, next) => {
 });
 
 // 新增RAG检索接口
-app.post('/api/rag-search', async (req, res) => {
+app.get('/api/rag-search', async (req, res) => {
+    const { query, topK = 3 } = req.query;
+    if (!model || !index) {
+        console.error('RAG未初始化');
+        return res.status(500).json({ error: 'RAG未初始化' });
+    }
+    try {
+        const queryEmbedding = await model(query, { pooling: 'mean', normalize: true });
+        const [distances, indices] = index.search(queryEmbedding.data, topK);
+        const relevantDocs = indices[0].map(i => chunks[i]).filter((_, idx) => distances[0][idx] < 0.8);
+        const responseData = { relevantDocs: relevantDocs.map(doc => doc.text) };
+        console.log('Response data:', responseData);
+        res.json(responseData);
+    } catch (error) {
+        console.error('RAG搜索失败:', error);
+        res.status(500).json({ error: 'RAG搜索失败' });
+    }
+});
+
+/*app.post('/api/rag-search', async (req, res) => {
     console.log('Before handling POST request to /api/rag-search');
     console.log('Received POST request to /api/rag-search');
     console.log('Request method:', req.method);
@@ -212,7 +231,7 @@ app.post('/api/rag-search', async (req, res) => {
         res.status(500).json({ error: 'RAG搜索失败' });
     }
     console.log('After handling POST request to /api/rag-search');
-});
+});*/
 
 app.options('/api/rag-search', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
