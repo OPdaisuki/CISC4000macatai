@@ -1,4 +1,3 @@
-import fs from 'fs';
 import xml2js from 'xml2js';
 import Excel from 'exceljs';
 import { pipeline } from '@xenova/transformers';
