@@ -114,28 +114,42 @@ async function initRag() {
             return;
         }
 
+        const batchSize = 100; // 每批次生成的向量数量
         const embeddings = [];
-        for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-            console.log(`开始生成第 ${i + 1} 个向量，文本内容：${chunk.text}`);
-            const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
-            if (embedding.data.length!== 384) {
-                console.error(`第 ${i + 1} 个向量维度异常，文本: ${chunk.text}，维度: ${embedding.data.length}`);
-            }
-            embeddings.push(embedding.data);
-            console.log(`第 ${i + 1} 个向量生成完成`);
+
+        for (let i = 0; i < chunks.length; i += batchSize) {
+            const batchChunks = chunks.slice(i, i + batchSize);
+            console.log(`开始生成第 ${i + 1} 到 ${Math.min(i + batchSize, chunks.length)} 个向量`);
+
+            const batchEmbeddings = await Promise.all(batchChunks.map(async (chunk) => {
+                const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
+                if (embedding.data.length!== 384) {
+                    console.error(`向量维度异常，文本: ${chunk.text}，维度: ${embedding.data.length}`);
+                }
+                return embedding.data;
+            }));
+
+            embeddings.push(...batchEmbeddings);
+            console.log(`第 ${i + 1} 到 ${Math.min(i + batchSize, chunks.length)} 个向量生成完成`);
         }
+
         const vectorData = new Float32Array(embeddings.flat());
 
         // 检查数组长度是否符合要求
         if (vectorData.length % 384!== 0) {
-            console.error('向量数组长度不符合要求，无法构建索引');
-            return;
+            console.error(`向量数组长度不符合要求（当前长度: ${vectorData.length}），尝试截断...`);
+            const validLength = Math.floor(vectorData.length / 384) * 384;
+            const validVectorData = Array.from(vectorData.slice(0, validLength)); // 转换为普通数组
+            console.log(`截断后向量数组长度: ${validVectorData.length}`);
+            // 使用截断后的向量数据
+            index = new faiss.IndexFlatL2(384);
+            index.add(validVectorData);
+        } else {
+            // 数组长度符合要求，正常构建索引
+            index = new faiss.IndexFlatL2(384);
+            index.add(Array.from(vectorData)); // 转换为普通数组
         }
 
-        // 6. 创建并填充Faiss索引（向量维度384是MiniLM的输出维度）
-        index = new faiss.IndexFlatL2(384);
-        index.add(vectorData);
         console.log(`RAG初始化完成，加载文档数：${chunks.length}`);
     } catch (error) {
         console.error('RAG初始化失败:', error);
@@ -143,7 +157,7 @@ async function initRag() {
 }
 
 // 初始化RAG（服务器启动时加载数据）
-( async () => {
+(async () => {
     await initRag();
     console.log('RAG数据加载完成');
 })();
@@ -267,4 +281,3 @@ app.listen(port, () => {
     console.log(`✅ 服务器运行中: http://localhost:${port}`);
     console.log(`🔍 调试接口: http://localhost:${port}/api/debug`);
 });
-    
