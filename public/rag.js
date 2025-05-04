@@ -22,4 +22,3 @@ async function searchRag(query, topK = 3) {
 }
 
 export { searchRag };
-    
