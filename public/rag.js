@@ -1,13 +1,14 @@
-// rag.js
 async function searchRag(query, topK = 3) {
     try {
-        const response = await fetch('/api/rag-search', {
+        const requestOptions = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ query, topK })
-        });
+        };
+        console.log('Request options:', requestOptions);
+        const response = await fetch('/api/rag-search', requestOptions);
         if (!response.ok) {
             throw new Error('RAG搜索请求失败');
         }
