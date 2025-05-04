@@ -1,4 +1,4 @@
-const { initRag, searchRag } = require('./rag.js'); 
+const { initRag, searchRag } = require('./public/rag.js');
 
 const express = require('express');
 const cors = require('cors');
