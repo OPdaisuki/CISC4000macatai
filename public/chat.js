@@ -197,6 +197,7 @@ async function sendMessage() {
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
+                        // 可以在这里添加更详细的错误处理逻辑
                     }
                 }
             }
