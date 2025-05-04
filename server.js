@@ -1,4 +1,4 @@
-const { initRag, searchRag } = require('./rag.js'); // 添加这行
+const { initRag, searchRag } = require('./rag.js'); 
 
 const express = require('express');
 const cors = require('cors');
