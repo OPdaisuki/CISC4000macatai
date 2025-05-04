@@ -9,5 +9,16 @@
     "moment": "^2.30.1",
     "node-fetch": "^3.3.2",
     "xml2js": "^0.6.2"
-  }
+  },
+  "name": "cisc4000macatai-main",
+  "version": "1.0.0",
+  "description": "该项目有关本人的澳门旅游ai助手的毕业设计",
+  "main": "dst_api_service.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
