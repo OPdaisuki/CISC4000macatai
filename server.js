@@ -172,6 +172,7 @@ const config = {
 
 // 新增RAG检索接口
 app.post('/api/rag-search', async (req, res) => {
+    console.log('Received POST request to /api/rag-search');
     console.log('Request method:', req.method);
     console.log('Request headers:', req.headers);
     const { query, topK = 3 } = req.body;
