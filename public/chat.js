@@ -2,7 +2,9 @@
 //const apiKey = process.env.SILICONFLOW_API_KEY; // 由 Render 环境变量注入
 const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
 const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
-const { initRag, searchRag } = require('./rag.js'); // rag引入
+// 修改为 ES6 模块导入语法
+import { initRag, searchRag } from './rag.js';  // rag引入
+
 // 存储 CSV 文件内容（增强版含地址）
 let diningData = [];
 let scenicData = [];
