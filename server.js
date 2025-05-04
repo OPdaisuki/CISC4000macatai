@@ -1,11 +1,12 @@
-const { initRag, searchRag } = require('./public/rag.js');
-
+const { initRag, searchRag } = require('./rag.js');
 const express = require('express');
 const cors = require('cors');
-//const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
 const moment = require('moment');
 const path = require('path');
+const fs = require('fs');
+const xml2js = require('xml2js');
+const Excel = require('exceljs');
 
 const app = express();
 const port = 3000;
