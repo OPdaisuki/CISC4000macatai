@@ -3,7 +3,7 @@
 const apiKey = 'sk-ttlofmqnslochyllznmkmbmqocnybibwuojlkdlimmeptpcc';
 const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
 // 修改为 ES6 模块导入语法
-import { initRag, searchRag } from './rag.js';  // rag引入
+import { searchRag } from './rag.js';
 
 // 存储 CSV 文件内容（增强版含地址）
 let diningData = [];
@@ -55,8 +55,7 @@ async function loadCSVData() {
                 });
             }
         }
-    } 
-    catch (error) {
+    } catch (error) {
         console.error('CSV 数据加载失败:', error);
     }
 }
@@ -171,7 +170,7 @@ async function sendMessage() {
 
         // 获取 chat-box 元素
         const chatBox = document.getElementById('chat-box');
-        
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -189,8 +188,8 @@ async function sendMessage() {
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
                         contentSpan.innerHTML = completeReply
-                            .replace(/\n/g, '<br>')
-                            .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
+                           .replace(/\n/g, '<br>')
+                           .replace(/(路氹|度假区)/g, '<strong>$1</strong>'); // 关键地点高亮
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
@@ -209,14 +208,6 @@ async function sendMessage() {
 
 // 完整页面初始化逻辑
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. 初始化 RAG 系统（新增代码）
-    try {
-        await initRag(); // 调用 rag.js 中的初始化函数
-        console.log('✅ RAG 系统初始化完成，知识库已加载');
-    } catch (error) {
-        console.error('❌ RAG 初始化失败:', error);
-        alert('知识库加载失败，部分功能可能受限');
-    }
     // 用户交互组件
     const authModal = document.getElementById('authModal');
     const loginButton = document.getElementById('loginButton');
@@ -295,3 +286,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 初始化数据
     loadCSVData();
 });
+    
