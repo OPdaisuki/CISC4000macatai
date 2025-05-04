@@ -163,7 +163,7 @@ async function initRag() {
 })();
 
 // 修改静态文件中间件配置
-app.use(cors({ origin: '*' })); // 临时允许所有跨域请求
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] })); // 临时允许所有跨域请求
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), {
     setHeaders: (res, path) => {
@@ -191,6 +191,7 @@ app.use((req, res, next) => {
 
 // 新增RAG检索接口
 app.post('/api/rag-search', async (req, res) => {
+    console.log('Before handling POST request to /api/rag-search');
     console.log('Received POST request to /api/rag-search');
     console.log('Request method:', req.method);
     console.log('Request headers:', req.headers);
@@ -210,6 +211,14 @@ app.post('/api/rag-search', async (req, res) => {
         console.error('RAG搜索失败:', error);
         res.status(500).json({ error: 'RAG搜索失败' });
     }
+    console.log('After handling POST request to /api/rag-search');
+});
+
+app.options('/api/rag-search', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.sendStatus(200);
 });
 
 // 高德地图API请求函数
