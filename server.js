@@ -172,6 +172,8 @@ const config = {
 
 // 新增RAG检索接口
 app.post('/api/rag-search', async (req, res) => {
+    console.log('Request method:', req.method);
+    console.log('Request headers:', req.headers);
     const { query, topK = 3 } = req.body;
     if (!model || !index) {
         console.error('RAG未初始化');
