@@ -188,6 +188,7 @@ async function sendMessage() {
                     if (data === '[DONE]') break;
 
                     try {
+                        // 验证数据是否为有效的 JSON 格式
                         const jsonData = JSON.parse(data);
                         const delta = jsonData.choices[0]?.delta?.content || '';
                         completeReply += delta;
@@ -197,7 +198,7 @@ async function sendMessage() {
                         chatBox.scrollTop = chatBox.scrollHeight;
                     } catch (e) {
                         console.warn('流数据解析异常:', e);
-                        // 可以在这里添加更详细的错误处理逻辑
+                        console.log('异常数据:', data); // 打印异常数据以便调试
                     }
                 }
             }
