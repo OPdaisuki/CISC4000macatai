@@ -170,6 +170,11 @@ const config = {
     }
 };
 
+app.use((req, res, next) => {
+    console.log(`Received ${req.method} request to ${req.url}`);
+    next();
+});
+
 // 新增RAG检索接口
 app.post('/api/rag-search', async (req, res) => {
     console.log('Received POST request to /api/rag-search');
@@ -184,6 +189,8 @@ app.post('/api/rag-search', async (req, res) => {
         const queryEmbedding = await model(query, { pooling: 'mean', normalize: true });
         const [distances, indices] = index.search(queryEmbedding.data, topK);
         const relevantDocs = indices[0].map(i => chunks[i]).filter((_, idx) => distances[0][idx] < 0.8);
+        const responseData = { relevantDocs: relevantDocs.map(doc => doc.text) };
+        console.log('Response data:', responseData);
         res.json({ relevantDocs: relevantDocs.map(doc => doc.text) });
     } catch (error) {
         console.error('RAG搜索失败:', error);
