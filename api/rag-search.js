@@ -68,6 +68,13 @@ async function createCacheDir() {
     try {
         await fs.promises.mkdir(cacheDir, { recursive: true });
         console.log(`缓存目录 ${cacheDir} 创建成功`);
+        // 覆盖库的缓存路径逻辑
+        const { FileCache } = await import('@xenova/transformers/src/utils/hub.js');
+        const originalPut = FileCache.prototype.put;
+        FileCache.prototype.put = async function (request, response, progress_callback = undefined) {
+            const newRequest = request.replace('/var/task/node_modules/@xenova/transformers/.cache', cacheDir);
+            return originalPut.call(this, newRequest, response, progress_callback);
+        };
     } catch (error) {
         if (error.code!== 'EEXIST') {
             console.error(`创建缓存目录 ${cacheDir} 失败:`, error);
@@ -87,7 +94,7 @@ async function initRag() {
         console.log('模型加载完成');
 
         // 2. 解析酒店XML数据（dst_hotel.xml）
-        const xmlFilePath = path.join(__dirname, 'dst_hotel.xml');
+        const xmlFilePath = path.join(__dirname, '../dst_hotel.xml');
         console.log('开始解析酒店XML数据');
         const hotelData = await parseXml(xmlFilePath);
         console.log(`解析酒店XML数据完成，共解析到 ${hotelData.length} 条酒店数据`);
@@ -101,7 +108,7 @@ async function initRag() {
         }));
 
         // 3. 解析旅游数据Excel（MacaoDistrictTourismData_202403.xlsx）
-        const excelFilePath = path.join(__dirname, 'MacaoDistrictTourismData_202403.xlsx');
+        const excelFilePath = path.join(__dirname, '../MacaoDistrictTourismData_202403.xlsx');
         console.log('开始解析旅游数据Excel');
         const tourismData = await parseExcel(excelFilePath);
         console.log(`解析旅游数据Excel完成，共解析到 ${tourismData.length} 条旅游数据`);
