@@ -62,14 +62,15 @@ function parseExcel(excelPath) {
 }
 
 // 初始化RAG系统
+// 初始化RAG系统
 async function initRag() {
     try {
-        // 设置缓存目录为 /tmp
-        const { pipeline } = await import('@xenova/transformers');
-        const { setCacheDir } = await import('@xenova/transformers');
-        setCacheDir('/tmp');
+        // 移除设置缓存目录的代码
+        // const { setCacheDir } = await import('@xenova/transformers');
+        // setCacheDir('/tmp');
 
         // 1. 加载向量化模型
+        const { pipeline } = await import('@xenova/transformers');
         model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('模型加载完成');
 
@@ -144,7 +145,6 @@ async function initRag() {
         throw error;
     }
 }
-
 // 确保RAG已初始化
 async function ensureRagInitialized() {
     if (model && index) return;
