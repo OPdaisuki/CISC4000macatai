@@ -1,14 +1,14 @@
-const { pipeline } = require('@xenova/transformers');
 const faiss = require('faiss-node');
 let model;
 let index;
 let chunks = [];
+let isInitializing = false;
 
-// XML解析函数
+// XML解析函数（CommonJS 风格，使用 require 加载同步依赖）
 function parseXml(xmlPath) {
+    const fs = require('fs');
+    const xml2js = require('xml2js');
     return new Promise((resolve, reject) => {
-        const fs = require('fs');
-        const xml2js = require('xml2js');
         fs.readFile(xmlPath, 'utf8', (err, data) => {
             if (err) {
                 console.error('XML读取错误:', err);
@@ -23,9 +23,9 @@ function parseXml(xmlPath) {
                 }
                 const hotels = result.mgto.hotel || [];
                 const hotelData = hotels.map(hotel => ({
-                    name_zh: hotel.name_zh,
-                    address_zh: hotel.address_zh,
-                    classname_zh: hotel.classname_zh
+                    name_zh: hotel.name_zh?.[0] || '',
+                    address_zh: hotel.address_zh?.[0] || '',
+                    classname_zh: hotel.classname_zh?.[0] || ''
                 }));
                 resolve(hotelData);
             });
@@ -33,10 +33,10 @@ function parseXml(xmlPath) {
     });
 }
 
-// Excel解析函数
+// Excel解析函数（CommonJS 风格，使用 require 加载同步依赖）
 function parseExcel(excelPath) {
+    const Excel = require('exceljs');
     return new Promise((resolve, reject) => {
-        const Excel = require('exceljs');
         const workbook = new Excel.Workbook();
         workbook.xlsx.readFile(excelPath)
            .then(() => {
@@ -47,7 +47,7 @@ function parseExcel(excelPath) {
                         const rowData = {};
                         worksheet.columns.forEach((column, colIndex) => {
                             const header = column.header;
-                            rowData[header] = row.values[colIndex + 1];
+                            rowData[header] = row.values[colIndex + 1] || ''; // 处理空值
                         });
                         data.push(rowData);
                     }
@@ -61,9 +61,12 @@ function parseExcel(excelPath) {
     });
 }
 
-// 初始化RAG系统
+// 初始化RAG系统（异步加载ES模块）
 async function initRag() {
     try {
+        // 动态导入ES模块（解决 ERR_REQUIRE_ESM 错误）
+        const { pipeline } = await import('@xenova/transformers');
+        
         // 1. 加载向量化模型
         model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('模型加载完成');
@@ -73,11 +76,11 @@ async function initRag() {
         const hotelData = await parseXml('./dst_hotel.xml');
         console.log(`解析酒店XML数据完成，共解析到 ${hotelData.length} 条酒店数据`);
         const hotelChunks = hotelData.map(hotel => ({
-            text: `${hotel.name_zh?.[0] || ''} ${hotel.address_zh?.[0] || ''}`,
+            text: `${hotel.name_zh} ${hotel.address_zh}`, // 简化空值处理
             metadata: {
                 source: 'hotel',
-                class: hotel.classname_zh?.[0] || '',
-                address: hotel.address_zh?.[0] || ''
+                class: hotel.classname_zh,
+                address: hotel.address_zh
             }
         }));
 
@@ -90,14 +93,14 @@ async function initRag() {
             metadata: {
                 source: 'tourism',
                 time: `${tour['年']}年${tour['月']}月${tour['時段'] || '全天'}`,
-                district: tour['統計分區'] || '',
-                visitor_count: tour['到訪人次'] || ''
+                district: tour['統計分區'],
+                visitor_count: tour['到訪人次']
             }
         }));
 
         // 4. 合并所有数据
-        chunks = [...hotelChunks, ...tourismChunks];
-        console.log(`合并数据完成，共合并 ${chunks.length} 条数据`);
+        chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim()!== ''); // 过滤无效数据
+        console.log(`合并数据完成，共合并 ${chunks.length} 条有效数据`);
 
         // 5. 生成向量化并构建索引（仅当数据存在时执行）
         if (chunks.length === 0) {
@@ -116,6 +119,7 @@ async function initRag() {
                 const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
                 if (embedding.data.length!== 384) {
                     console.error(`向量维度异常，文本: ${chunk.text}，维度: ${embedding.data.length}`);
+                    return new Float32Array(384); // 填充默认向量（避免维度错误）
                 }
                 return embedding.data;
             }));
@@ -126,67 +130,73 @@ async function initRag() {
 
         const vectorData = new Float32Array(embeddings.flat());
 
-        // 检查数组长度是否符合要求
-        if (vectorData.length % 384!== 0) {
-            console.error(`向量数组长度不符合要求（当前长度: ${vectorData.length}），尝试截断...`);
-            const validLength = Math.floor(vectorData.length / 384) * 384;
-            const validVectorData = Array.from(vectorData.slice(0, validLength)); // 转换为普通数组
-            console.log(`截断后向量数组长度: ${validVectorData.length}`);
-            // 使用截断后的向量数据
-            index = new faiss.IndexFlatL2(384);
-            index.add(validVectorData);
-        } else {
-            // 数组长度符合要求，正常构建索引
-            index = new faiss.IndexFlatL2(384);
-            index.add(Array.from(vectorData)); // 转换为普通数组
-        }
+        // 检查数组长度是否符合要求（修复潜在的数组越界问题）
+        const validLength = Math.floor(vectorData.length / 384) * 384;
+        const validVectorData = vectorData.subarray(0, validLength); // 使用 subarray 替代 slice
 
-        console.log(`RAG初始化完成，加载文档数：${chunks.length}`);
+        index = new faiss.IndexFlatL2(384);
+        index.add(validVectorData); // 直接添加 Float32Array（faiss-node 支持原生 ArrayBuffer）
+        console.log(`RAG初始化完成，加载文档数：${chunks.length}，向量数组长度：${validVectorData.length}`);
+
     } catch (error) {
-        console.error('RAG初始化失败:', error);
+        console.error('RAG初始化失败:', error.stack); // 记录完整堆栈
+        throw error; // 向上抛出错误，确保外层捕获
     }
 }
 
-// 初始化RAG（首次请求时加载数据）
-(async () => {
-    await initRag();
-    console.log('RAG数据加载完成');
-})();
-
-module.exports = async (req, res) => {
-    if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'POST');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-        res.sendStatus(200);
+// 确保RAG已初始化（处理冷启动和并发初始化）
+async function ensureRagInitialized() {
+    if (model && index) return; // 已初始化，直接返回
+    if (isInitializing) { // 等待正在进行的初始化
+        while (!model || !index) await new Promise(resolve => setTimeout(resolve, 100));
         return;
+    }
+    isInitializing = true; // 标记初始化中
+    try {
+        await initRag(); // 执行初始化
+    } finally {
+        isInitializing = false; // 清除标记，无论成功与否
+    }
+}
+
+// 导出Vercel无服务器函数处理函数
+module.exports = async (req, res) => {
+    // 处理CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end(); // 处理预检请求
     }
 
     if (req.method!== 'POST') {
-        res.status(405).json({ error: 'Method Not Allowed' });
-        return;
+        return res.status(405).json({ error: '仅支持POST方法' });
     }
 
-    console.log('Before handling POST request to /api/rag-search');
-    console.log('Received POST request to /api/rag-search');
-    console.log('Request method:', req.method);
-    console.log('Request headers:', req.headers);
-    const { query, topK = 3 } = req.body;
-    if (!model ||!index) {
-        console.error('RAG未初始化');
-        res.status(500).json({ error: 'RAG未初始化' });
-        return;
-    }
     try {
+        await ensureRagInitialized(); // 确保RAG已初始化
+        const { query, topK = 3 } = req.body;
+
+        // 执行RAG搜索
         const queryEmbedding = await model(query, { pooling: 'mean', normalize: true });
         const [distances, indices] = index.search(queryEmbedding.data, topK);
-        const relevantDocs = indices[0].map(i => chunks[i]).filter((_, idx) => distances[0][idx] < 0.8);
-        const responseData = { relevantDocs: relevantDocs.map(doc => doc.text) };
-        console.log('Response data:', responseData);
-        res.json(responseData);
+        
+        // 过滤低相似度结果（距离阈值优化）
+        const relevantDocs = indices[0]
+            .map((i, idx) => chunks[i])
+            .filter((_, idx) => distances[0][idx] < 0.7); // 降低阈值提高召回率
+
+        return res.status(200).json({ 
+            relevantDocs: relevantDocs.map(doc => doc.text),
+            metadata: relevantDocs.map(doc => doc.metadata) // 返回元数据（可选）
+        });
+
     } catch (error) {
-        console.error('RAG搜索失败:', error);
-        res.status(500).json({ error: 'RAG搜索失败' });
+        console.error('搜索处理错误:', error.stack);
+        return res.status(500).json({ 
+            error: '服务器内部错误', 
+            details: '请检查Vercel日志获取更多信息' 
+        });
     }
-    console.log('After handling POST request to /api/rag-search');
 };
