@@ -69,7 +69,7 @@ async function createCacheDir() {
         await fs.promises.mkdir(cacheDir, { recursive: true });
         console.log(`缓存目录 ${cacheDir} 创建成功`);
 
-        // 导入模块并打印内容
+        // 导入模块并修改缓存逻辑
         const hubModule = await import('@xenova/transformers/src/utils/hub.js');
         console.log('导入的 hubModule 内容:', hubModule);
 
@@ -84,14 +84,20 @@ async function createCacheDir() {
             console.error('未能成功导入 FileCache');
         }
     } catch (error) {
-        if (error.code!== 'EEXIST') {
+        if (error.code !== 'EEXIST') {
             console.error(`创建缓存目录 ${cacheDir} 失败:`, error);
         }
     }
 }
 
 // 初始化RAG系统
-async function initRag() {
+async function initRag(data = []) {
+    // 类型检查，确保传入参数是数组
+    if (!Array.isArray(data)) {
+        console.error('initRag 参数类型无效，必须为数组:', data);
+        throw new TypeError('第一个参数类型无效，必须为数组');
+    }
+
     try {
         // 创建缓存目录
         await createCacheDir();
@@ -101,7 +107,7 @@ async function initRag() {
         model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('模型加载完成');
 
-        // 2. 解析酒店XML数据（dst_hotel.xml）
+        // 2. 解析酒店XML数据
         const xmlFilePath = path.join(__dirname, '../dst_hotel.xml');
         console.log('开始解析酒店XML数据');
         const hotelData = await parseXml(xmlFilePath);
@@ -115,7 +121,7 @@ async function initRag() {
             }
         }));
 
-        // 3. 解析旅游数据Excel（MacaoDistrictTourismData_202403.xlsx）
+        // 3. 解析旅游数据Excel
         const excelFilePath = path.join(__dirname, '../MacaoDistrictTourismData_202403.xlsx');
         console.log('开始解析旅游数据Excel');
         const tourismData = await parseExcel(excelFilePath);
@@ -131,44 +137,24 @@ async function initRag() {
         }));
 
         // 4. 合并所有数据
-        chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim()!== '');
+        chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim() !== '');
         console.log(`合并数据完成，共合并 ${chunks.length} 条有效数据`);
 
-        // 5. 生成向量化并构建索引（仅当数据存在时执行）
+        // 5. 构建索引
         if (chunks.length === 0) {
             console.error('没有可用数据，无法构建索引');
             return;
         }
 
-        const batchSize = 100; // 每批次生成的向量数量
-        const embeddings = [];
-
-        for (let i = 0; i < chunks.length; i += batchSize) {
-            const batchChunks = chunks.slice(i, i + batchSize);
-            console.log(`开始生成第 ${i + 1} 到 ${Math.min(i + batchSize, chunks.length)} 个向量`);
-
-            const batchEmbeddings = await Promise.all(batchChunks.map(async (chunk) => {
-                const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
-                if (embedding.data.length!== 384) {
-                    console.error(`向量维度异常，文本: ${chunk.text}，维度: ${embedding.data.length}`);
-                    return new Float32Array(384);
-                }
-                return embedding.data;
-            }));
-
-            embeddings.push(...batchEmbeddings);
-            console.log(`第 ${i + 1} 到 ${Math.min(i + batchSize, chunks.length)} 个向量生成完成`);
-        }
+        const embeddings = await Promise.all(chunks.map(async chunk => {
+            const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
+            return embedding.data;
+        }));
 
         const vectorData = new Float32Array(embeddings.flat());
-
-        const validLength = Math.floor(vectorData.length / 384) * 384;
-        const validVectorData = vectorData.subarray(0, validLength);
-
         index = new faiss.IndexFlatL2(384);
-        index.add(validVectorData);
-        console.log(`RAG初始化完成，加载文档数：${chunks.length}，向量数组长度：${validVectorData.length}`);
-
+        index.add(vectorData);
+        console.log(`RAG初始化完成，加载文档数：${chunks.length}，向量数组长度：${vectorData.length}`);
     } catch (error) {
         console.error('RAG初始化失败:', error.stack);
         throw error;
@@ -179,12 +165,12 @@ async function initRag() {
 async function ensureRagInitialized() {
     if (model && index) return;
     if (isInitializing) {
-        while (!model ||!index) await new Promise(resolve => setTimeout(resolve, 100));
+        while (!model || !index) await new Promise(resolve => setTimeout(resolve, 100));
         return;
     }
     isInitializing = true;
     try {
-        await initRag();
+        await initRag([]);
     } finally {
         isInitializing = false;
     }
@@ -200,18 +186,12 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    if (req.method!== 'POST') {
+    if (req.method !== 'POST') {
         return res.status(405).json({ error: '仅支持POST方法' });
     }
 
     try {
         await ensureRagInitialized();
-        if (!index) {
-            return res.status(500).json({
-                error: '没有可用索引，请检查数据文件是否存在',
-                details: '请检查Vercel日志获取更多信息'
-            });
-        }
         const { query, topK = 3 } = req.body;
 
         const queryEmbedding = await model(query, { pooling: 'mean', normalize: true });
@@ -225,7 +205,6 @@ module.exports = async (req, res) => {
             relevantDocs: relevantDocs.map(doc => doc.text),
             metadata: relevantDocs.map(doc => doc.metadata)
         });
-
     } catch (error) {
         console.error('搜索处理错误:', error.stack);
         return res.status(500).json({
