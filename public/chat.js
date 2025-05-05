@@ -14,47 +14,26 @@ let conversationHistory = [];
 // 增强版 CSV 解析（支持名称+地址）
 async function loadCSVData() {
     try {
-        // 解析餐饮数据（假设CSV格式：名称,地址,...）
-        const diningResponse = await fetch('./data/dataPOI_820000_餐饮服务.csv');
-        const diningText = await diningResponse.text();
-        const diningLines = diningText.split('\n');
-        for (let i = 1; i < diningLines.length; i++) {
-            const columns = diningLines[i].split(',');
-            if (columns.length >= 2) { // 至少包含名称和地址
-                diningData.push({
-                    name: columns[0].trim(),
-                    address: columns[1].trim()
-                });
+        const loadSingleCSV = async (url) => {
+            const response = await fetch(url);
+            const text = await response.text();
+            const lines = text.split('\n');
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const columns = lines[i].split(',');
+                if (columns.length >= 2) {
+                    data.push({
+                        name: columns[0].trim(),
+                        address: columns[1].trim()
+                    });
+                }
             }
-        }
+            return data;
+        };
 
-        // 解析风景名胜数据
-        const scenicResponse = await fetch('./data/dataPOI_820000_风景名胜.csv');
-        const scenicText = await scenicResponse.text();
-        const scenicLines = scenicText.split('\n');
-        for (let i = 1; i < scenicLines.length; i++) {
-            const columns = scenicLines[i].split(',');
-            if (columns.length >= 2) {
-                scenicData.push({
-                    name: columns[0].trim(),
-                    address: columns[1].trim()
-                });
-            }
-        }
-
-        // 解析住宿数据
-        const accommodationResponse = await fetch('./data/dataPOI_820000_住宿服务.csv');
-        const accommodationText = await accommodationResponse.text();
-        const accommodationLines = accommodationText.split('\n');
-        for (let i = 1; i < accommodationLines.length; i++) {
-            const columns = accommodationLines[i].split(',');
-            if (columns.length >= 2) {
-                accommodationData.push({
-                    name: columns[0].trim(),
-                    address: columns[1].trim()
-                });
-            }
-        }
+        diningData = await loadSingleCSV('./data/dataPOI_820000_餐饮服务.csv');
+        scenicData = await loadSingleCSV('./data/dataPOI_820000_风景名胜.csv');
+        accommodationData = await loadSingleCSV('./data/dataPOI_820000_住宿服务.csv');
     } catch (error) {
         console.error('CSV 数据加载失败:', error);
     }
@@ -158,7 +137,10 @@ async function sendMessage() {
         };
 
         const response = await fetch(apiUrl, options);
-        if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+        if (!response.ok) {
+            const responseText = await response.text();
+            throw new Error(`请求失败: ${response.status} ${responseText}`);
+        }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -257,7 +239,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify({ username: username.value, password: password.value })
             });
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                const responseText = await response.text();
+                throw new Error(`HTTP ${response.status} ${responseText}`);
+            }
             const data = await response.json();
 
             alert(data.success ? (isRegister ? '注册成功!' : '登录成功!') : data.message);
