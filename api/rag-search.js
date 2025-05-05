@@ -92,7 +92,7 @@ async function createCacheDir() {
 
 // 初始化RAG系统
 async function initRag(data = []) {
-    // 类型检查，确保传入参数是数组
+    // 参数类型检查
     if (!Array.isArray(data)) {
         console.error('initRag 参数类型无效，必须为数组:', data);
         throw new TypeError('第一个参数类型无效，必须为数组');
@@ -102,55 +102,38 @@ async function initRag(data = []) {
         // 创建缓存目录
         await createCacheDir();
 
-        // 1. 加载向量化模型
+        // 加载模型
         const { pipeline } = await import('@xenova/transformers');
         model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('模型加载完成');
 
-        // 2. 解析酒店XML数据
+        // 加载并解析数据
         const xmlFilePath = path.join(__dirname, '../dst_hotel.xml');
-        console.log('开始解析酒店XML数据');
+        const excelFilePath = path.join(__dirname, '../MacaoDistrictTourismData_202403.xlsx');
         const hotelData = await parseXml(xmlFilePath);
-        console.log(`解析酒店XML数据完成，共解析到 ${hotelData.length} 条酒店数据`);
+        const tourismData = await parseExcel(excelFilePath);
+
+        // 数据合并
         const hotelChunks = hotelData.map(hotel => ({
             text: `${hotel.name_zh} ${hotel.address_zh}`,
-            metadata: {
-                source: 'hotel',
-                class: hotel.classname_zh,
-                address: hotel.address_zh
-            }
+            metadata: { source: 'hotel', class: hotel.classname_zh, address: hotel.address_zh }
         }));
-
-        // 3. 解析旅游数据Excel
-        const excelFilePath = path.join(__dirname, '../MacaoDistrictTourismData_202403.xlsx');
-        console.log('开始解析旅游数据Excel');
-        const tourismData = await parseExcel(excelFilePath);
-        console.log(`解析旅游数据Excel完成，共解析到 ${tourismData.length} 条旅游数据`);
         const tourismChunks = tourismData.map(tour => ({
             text: `${tour['統計分區'] || ''} ${tour['到訪人次'] || ''}`,
-            metadata: {
-                source: 'tourism',
-                time: `${tour['年']}年${tour['月']}月${tour['時段'] || '全天'}`,
-                district: tour['統計分區'],
-                visitor_count: tour['到訪人次']
-            }
+            metadata: { source: 'tourism', time: `${tour['年']}年${tour['月']}月${tour['時段'] || '全天'}`, district: tour['統計分區'], visitor_count: tour['到訪人次'] }
         }));
-
-        // 4. 合并所有数据
         chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim() !== '');
         console.log(`合并数据完成，共合并 ${chunks.length} 条有效数据`);
 
-        // 5. 构建索引
+        // 构建索引
         if (chunks.length === 0) {
             console.error('没有可用数据，无法构建索引');
             return;
         }
-
         const embeddings = await Promise.all(chunks.map(async chunk => {
             const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
             return embedding.data;
         }));
-
         const vectorData = new Float32Array(embeddings.flat());
         index = new faiss.IndexFlatL2(384);
         index.add(vectorData);
