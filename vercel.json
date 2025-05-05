@@ -1,8 +1,6 @@
 {
     "rewrites": [
         { "source": "/api/rag-search", "destination": "/api/rag-search.js" },
-        { "source": "/api/attractions", "destination": "/api/attractions.js" },
-        { "source": "/api/nearby-restaurants", "destination": "/api/nearby-restaurants.js" },
         { "source": "/(.*)", "destination": "/Mainpage.html" }
     ]
 }
