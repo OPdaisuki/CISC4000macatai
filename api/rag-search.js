@@ -1,4 +1,6 @@
 const faiss = require('faiss-node');
+const fs = require('fs');
+const path = require('path');
 let model;
 let index;
 let chunks = [];
@@ -6,7 +8,6 @@ let isInitializing = false;
 
 // XML解析函数
 function parseXml(xmlPath) {
-    const fs = require('fs');
     const xml2js = require('xml2js');
     return new Promise((resolve, reject) => {
         fs.readFile(xmlPath, 'utf8', (err, data) => {
@@ -61,13 +62,24 @@ function parseExcel(excelPath) {
     });
 }
 
-// 初始化RAG系统
+// 创建缓存目录
+async function createCacheDir() {
+    const cacheDir = path.join('/tmp', '@xenova/transformers/.cache');
+    try {
+        await fs.promises.mkdir(cacheDir, { recursive: true });
+        console.log(`缓存目录 ${cacheDir} 创建成功`);
+    } catch (error) {
+        if (error.code!== 'EEXIST') {
+            console.error(`创建缓存目录 ${cacheDir} 失败:`, error);
+        }
+    }
+}
+
 // 初始化RAG系统
 async function initRag() {
     try {
-        // 移除设置缓存目录的代码
-        // const { setCacheDir } = await import('@xenova/transformers');
-        // setCacheDir('/tmp');
+        // 创建缓存目录
+        await createCacheDir();
 
         // 1. 加载向量化模型
         const { pipeline } = await import('@xenova/transformers');
@@ -75,8 +87,9 @@ async function initRag() {
         console.log('模型加载完成');
 
         // 2. 解析酒店XML数据（dst_hotel.xml）
+        const xmlFilePath = path.join(__dirname, 'dst_hotel.xml');
         console.log('开始解析酒店XML数据');
-        const hotelData = await parseXml('./dst_hotel.xml');
+        const hotelData = await parseXml(xmlFilePath);
         console.log(`解析酒店XML数据完成，共解析到 ${hotelData.length} 条酒店数据`);
         const hotelChunks = hotelData.map(hotel => ({
             text: `${hotel.name_zh} ${hotel.address_zh}`,
@@ -88,8 +101,9 @@ async function initRag() {
         }));
 
         // 3. 解析旅游数据Excel（MacaoDistrictTourismData_202403.xlsx）
+        const excelFilePath = path.join(__dirname, 'MacaoDistrictTourismData_202403.xlsx');
         console.log('开始解析旅游数据Excel');
-        const tourismData = await parseExcel('./MacaoDistrictTourismData_202403.xlsx');
+        const tourismData = await parseExcel(excelFilePath);
         console.log(`解析旅游数据Excel完成，共解析到 ${tourismData.length} 条旅游数据`);
         const tourismChunks = tourismData.map(tour => ({
             text: `${tour['統計分區'] || ''} ${tour['到訪人次'] || ''}`,
@@ -145,6 +159,7 @@ async function initRag() {
         throw error;
     }
 }
+
 // 确保RAG已初始化
 async function ensureRagInitialized() {
     if (model && index) return;
@@ -176,6 +191,12 @@ module.exports = async (req, res) => {
 
     try {
         await ensureRagInitialized();
+        if (!index) {
+            return res.status(500).json({
+                error: '没有可用索引，请检查数据文件是否存在',
+                details: '请检查Vercel日志获取更多信息'
+            });
+        }
         const { query, topK = 3 } = req.body;
 
         const queryEmbedding = await model(query, { pooling: 'mean', normalize: true });
