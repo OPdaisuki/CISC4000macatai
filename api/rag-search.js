@@ -69,8 +69,11 @@ async function createCacheDir() {
         await fs.promises.mkdir(cacheDir, { recursive: true });
         console.log(`缓存目录 ${cacheDir} 创建成功`);
 
-        // 导入 FileCache
-        const { FileCache } = await import('@xenova/transformers/src/utils/hub.js');
+        // 导入模块并打印内容
+        const hubModule = await import('@xenova/transformers/src/utils/hub.js');
+        console.log('导入的 hubModule 内容:', hubModule);
+
+        const { FileCache } = hubModule;
         if (FileCache) {
             const originalPut = FileCache.prototype.put;
             FileCache.prototype.put = async function (request, response, progress_callback = undefined) {
