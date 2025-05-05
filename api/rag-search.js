@@ -1,70 +1,59 @@
 const faiss = require('faiss-node');
 const fs = require('fs');
 const path = require('path');
+const xml2js = require('xml2js');
+const Excel = require('exceljs');
+
 let model;
 let index;
 let chunks = [];
 let isInitializing = false;
 
-// XML解析函数
-function parseXml(xmlPath) {
-    const xml2js = require('xml2js');
-    return new Promise((resolve, reject) => {
-        fs.readFile(xmlPath, 'utf8', (err, data) => {
-            if (err) {
-                console.error('XML读取错误:', err);
-                resolve([]);
-                return;
-            }
-            xml2js.parseString(data, (err, result) => {
-                if (err) {
-                    console.error('XML解析错误:', err);
-                    resolve([]);
-                    return;
-                }
-                const hotels = result.mgto.hotel || [];
-                const hotelData = hotels.map(hotel => ({
-                    name_zh: hotel.name_zh?.[0] || '',
-                    address_zh: hotel.address_zh?.[0] || '',
-                    classname_zh: hotel.classname_zh?.[0] || ''
-                }));
-                resolve(hotelData);
-            });
-        });
-    });
+// XML 解析函数
+async function parseXml(xmlPath) {
+    try {
+        const data = fs.readFileSync(xmlPath, 'utf8');
+        const parsedData = await xml2js.parseStringPromise(data);
+        const hotels = parsedData.mgto.hotel || [];
+        return hotels.map(hotel => ({
+            name_zh: hotel.name_zh?.[0] || '',
+            address_zh: hotel.address_zh?.[0] || '',
+            classname_zh: hotel.classname_zh?.[0] || ''
+        }));
+    } catch (err) {
+        console.error('XML 解析错误:', err);
+        return [];
+    }
 }
 
-// Excel解析函数
-function parseExcel(excelPath) {
-    const Excel = require('exceljs');
-    return new Promise((resolve, reject) => {
+// Excel 解析函数
+async function parseExcel(excelPath) {
+    try {
         const workbook = new Excel.Workbook();
-        workbook.xlsx.readFile(excelPath)
-           .then(() => {
-                const worksheet = workbook.getWorksheet(1);
-                const data = [];
-                worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-                    if (rowNumber > 1) {
-                        const rowData = {};
-                        worksheet.columns.forEach((column, colIndex) => {
-                            const header = column.header;
-                            rowData[header] = row.values[colIndex + 1] || '';
-                        });
-                        data.push(rowData);
-                    }
+        await workbook.xlsx.readFile(excelPath);
+        const worksheet = workbook.getWorksheet(1);
+        const data = [];
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber > 1) {
+                const rowData = {};
+                worksheet.columns.forEach((column, colIndex) => {
+                    const header = column.header;
+                    rowData[header] = row.values[colIndex + 1] || '';
                 });
-                resolve(data);
-            })
-           .catch((error) => {
-                console.error('Excel解析错误:', error);
-                resolve([]);
-            });
-    });
+                data.push(rowData);
+            }
+        });
+
+        return data;
+    } catch (err) {
+        console.error('Excel 解析错误:', err);
+        return [];
+    }
 }
 
-// 初始化RAG系统
+// 初始化 RAG 系统
 async function initRag(data = []) {
-    // 参数类型检查
     if (!Array.isArray(data)) {
         console.error('initRag 参数类型无效，必须为数组:', data);
         throw new TypeError('第一个参数类型无效，必须为数组');
@@ -73,7 +62,7 @@ async function initRag(data = []) {
     try {
         // 加载模型
         const { pipeline } = await import('@xenova/transformers');
-        process.env.TRANSFORMERS_CACHE = '/tmp/@xenova/transformers/.cache'; // 指定缓存路径
+        process.env.TRANSFORMERS_CACHE = '/tmp/@xenova/transformers/.cache';
         model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
             cache_dir: process.env.TRANSFORMERS_CACHE
         });
@@ -91,9 +80,15 @@ async function initRag(data = []) {
             metadata: { source: 'hotel', class: hotel.classname_zh, address: hotel.address_zh }
         }));
         const tourismChunks = tourismData.map(tour => ({
-            text: `${tour['統計分區'] || ''} ${tour['到訪人次'] || ''}`,
-            metadata: { source: 'tourism', time: `${tour['年']}年${tour['月']}月${tour['時段'] || '全天'}`, district: tour['統計分區'], visitor_count: tour['到訪人次'] }
+            text: `${tour['统计分区'] || ''} ${tour['到访人次'] || ''}`,
+            metadata: {
+                source: 'tourism',
+                time: `${tour['年']}年${tour['月']}月${tour['时段'] || '全天'}`,
+                district: tour['统计分区'],
+                visitor_count: tour['到访人次']
+            }
         }));
+
         chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim() !== '');
         console.log(`合并数据完成，共合并 ${chunks.length} 条有效数据`);
 
@@ -109,14 +104,14 @@ async function initRag(data = []) {
         const vectorData = new Float32Array(embeddings.flat());
         index = new faiss.IndexFlatL2(384);
         index.add(vectorData);
-        console.log(`RAG初始化完成，加载文档数：${chunks.length}，向量数组长度：${vectorData.length}`);
+        console.log(`RAG 初始化完成，加载文档数：${chunks.length}，向量数组长度：${vectorData.length}`);
     } catch (error) {
-        console.error('RAG初始化失败:', error.stack);
+        console.error('RAG 初始化失败:', error.stack);
         throw error;
     }
 }
 
-// 确保RAG已初始化
+// 确保 RAG 已初始化
 async function ensureRagInitialized() {
     if (model && index) return;
     if (isInitializing) {
@@ -131,7 +126,7 @@ async function ensureRagInitialized() {
     }
 }
 
-// 导出Vercel无服务器函数处理函数
+// 导出 Vercel 无服务器函数处理函数
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -153,8 +148,8 @@ module.exports = async (req, res) => {
         const [distances, indices] = index.search(queryEmbedding.data, topK);
 
         const relevantDocs = indices[0]
-           .map((i, idx) => chunks[i])
-           .filter((_, idx) => distances[0][idx] < 0.7);
+            .map((i, idx) => chunks[i])
+            .filter((_, idx) => distances[0][idx] < 0.7);
 
         return res.status(200).json({
             relevantDocs: relevantDocs.map(doc => doc.text),
