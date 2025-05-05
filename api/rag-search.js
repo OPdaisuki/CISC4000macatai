@@ -62,34 +62,6 @@ function parseExcel(excelPath) {
     });
 }
 
-// 创建缓存目录
-async function createCacheDir() {
-    const cacheDir = path.join('/tmp', '@xenova/transformers/.cache');
-    try {
-        await fs.promises.mkdir(cacheDir, { recursive: true });
-        console.log(`缓存目录 ${cacheDir} 创建成功`);
-
-        // 导入模块并修改缓存逻辑
-        const hubModule = await import('@xenova/transformers/src/utils/hub.js');
-        console.log('导入的 hubModule 内容:', hubModule);
-
-        const { FileCache } = hubModule;
-        if (FileCache) {
-            const originalPut = FileCache.prototype.put;
-            FileCache.prototype.put = async function (request, response, progress_callback = undefined) {
-                const newRequest = request.replace('/var/task/node_modules/@xenova/transformers/.cache', cacheDir);
-                return originalPut.call(this, newRequest, response, progress_callback);
-            };
-        } else {
-            console.error('未能成功导入 FileCache');
-        }
-    } catch (error) {
-        if (error.code !== 'EEXIST') {
-            console.error(`创建缓存目录 ${cacheDir} 失败:`, error);
-        }
-    }
-}
-
 // 初始化RAG系统
 async function initRag(data = []) {
     // 参数类型检查
@@ -99,12 +71,12 @@ async function initRag(data = []) {
     }
 
     try {
-        // 创建缓存目录
-        await createCacheDir();
-
         // 加载模型
         const { pipeline } = await import('@xenova/transformers');
-        model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        process.env.TRANSFORMERS_CACHE = '/tmp/@xenova/transformers/.cache'; // 指定缓存路径
+        model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+            cache_dir: process.env.TRANSFORMERS_CACHE
+        });
         console.log('模型加载完成');
 
         // 加载并解析数据
