@@ -66,7 +66,7 @@ async function initRag() {
     try {
         // 设置缓存目录为 /tmp
         const { pipeline } = await import('@xenova/transformers');
-        const { setCacheDir } = await import('@xenova/transformers/src/utils/hub.js');
+        const { setCacheDir } = await import('@xenova/transformers');
         setCacheDir('/tmp');
 
         // 1. 加载向量化模型
