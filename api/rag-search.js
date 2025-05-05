@@ -68,13 +68,18 @@ async function createCacheDir() {
     try {
         await fs.promises.mkdir(cacheDir, { recursive: true });
         console.log(`缓存目录 ${cacheDir} 创建成功`);
-        // 覆盖库的缓存路径逻辑
+
+        // 导入 FileCache
         const { FileCache } = await import('@xenova/transformers/src/utils/hub.js');
-        const originalPut = FileCache.prototype.put;
-        FileCache.prototype.put = async function (request, response, progress_callback = undefined) {
-            const newRequest = request.replace('/var/task/node_modules/@xenova/transformers/.cache', cacheDir);
-            return originalPut.call(this, newRequest, response, progress_callback);
-        };
+        if (FileCache) {
+            const originalPut = FileCache.prototype.put;
+            FileCache.prototype.put = async function (request, response, progress_callback = undefined) {
+                const newRequest = request.replace('/var/task/node_modules/@xenova/transformers/.cache', cacheDir);
+                return originalPut.call(this, newRequest, response, progress_callback);
+            };
+        } else {
+            console.error('未能成功导入 FileCache');
+        }
     } catch (error) {
         if (error.code!== 'EEXIST') {
             console.error(`创建缓存目录 ${cacheDir} 失败:`, error);
