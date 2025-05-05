@@ -4,7 +4,7 @@ let index;
 let chunks = [];
 let isInitializing = false;
 
-// XML解析函数（CommonJS 风格，使用 require 加载同步依赖）
+// XML解析函数
 function parseXml(xmlPath) {
     const fs = require('fs');
     const xml2js = require('xml2js');
@@ -33,7 +33,7 @@ function parseXml(xmlPath) {
     });
 }
 
-// Excel解析函数（CommonJS 风格，使用 require 加载同步依赖）
+// Excel解析函数
 function parseExcel(excelPath) {
     const Excel = require('exceljs');
     return new Promise((resolve, reject) => {
@@ -47,7 +47,7 @@ function parseExcel(excelPath) {
                         const rowData = {};
                         worksheet.columns.forEach((column, colIndex) => {
                             const header = column.header;
-                            rowData[header] = row.values[colIndex + 1] || ''; // 处理空值
+                            rowData[header] = row.values[colIndex + 1] || '';
                         });
                         data.push(rowData);
                     }
@@ -61,12 +61,14 @@ function parseExcel(excelPath) {
     });
 }
 
-// 初始化RAG系统（异步加载ES模块）
+// 初始化RAG系统
 async function initRag() {
     try {
-        // 动态导入ES模块（解决 ERR_REQUIRE_ESM 错误）
+        // 设置缓存目录为 /tmp
         const { pipeline } = await import('@xenova/transformers');
-        
+        const { setCacheDir } = await import('@xenova/transformers/src/utils/hub.js');
+        setCacheDir('/tmp');
+
         // 1. 加载向量化模型
         model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('模型加载完成');
@@ -76,7 +78,7 @@ async function initRag() {
         const hotelData = await parseXml('./dst_hotel.xml');
         console.log(`解析酒店XML数据完成，共解析到 ${hotelData.length} 条酒店数据`);
         const hotelChunks = hotelData.map(hotel => ({
-            text: `${hotel.name_zh} ${hotel.address_zh}`, // 简化空值处理
+            text: `${hotel.name_zh} ${hotel.address_zh}`,
             metadata: {
                 source: 'hotel',
                 class: hotel.classname_zh,
@@ -99,7 +101,7 @@ async function initRag() {
         }));
 
         // 4. 合并所有数据
-        chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim()!== ''); // 过滤无效数据
+        chunks = [...hotelChunks, ...tourismChunks].filter(chunk => chunk.text.trim()!== '');
         console.log(`合并数据完成，共合并 ${chunks.length} 条有效数据`);
 
         // 5. 生成向量化并构建索引（仅当数据存在时执行）
@@ -119,7 +121,7 @@ async function initRag() {
                 const embedding = await model(chunk.text, { pooling: 'mean', normalize: true });
                 if (embedding.data.length!== 384) {
                     console.error(`向量维度异常，文本: ${chunk.text}，维度: ${embedding.data.length}`);
-                    return new Float32Array(384); // 填充默认向量（避免维度错误）
+                    return new Float32Array(384);
                 }
                 return embedding.data;
             }));
@@ -130,44 +132,42 @@ async function initRag() {
 
         const vectorData = new Float32Array(embeddings.flat());
 
-        // 检查数组长度是否符合要求（修复潜在的数组越界问题）
         const validLength = Math.floor(vectorData.length / 384) * 384;
-        const validVectorData = vectorData.subarray(0, validLength); // 使用 subarray 替代 slice
+        const validVectorData = vectorData.subarray(0, validLength);
 
         index = new faiss.IndexFlatL2(384);
-        index.add(validVectorData); // 直接添加 Float32Array（faiss-node 支持原生 ArrayBuffer）
+        index.add(validVectorData);
         console.log(`RAG初始化完成，加载文档数：${chunks.length}，向量数组长度：${validVectorData.length}`);
 
     } catch (error) {
-        console.error('RAG初始化失败:', error.stack); // 记录完整堆栈
-        throw error; // 向上抛出错误，确保外层捕获
+        console.error('RAG初始化失败:', error.stack);
+        throw error;
     }
 }
 
-// 确保RAG已初始化（处理冷启动和并发初始化）
+// 确保RAG已初始化
 async function ensureRagInitialized() {
-    if (model && index) return; // 已初始化，直接返回
-    if (isInitializing) { // 等待正在进行的初始化
-        while (!model || !index) await new Promise(resolve => setTimeout(resolve, 100));
+    if (model && index) return;
+    if (isInitializing) {
+        while (!model ||!index) await new Promise(resolve => setTimeout(resolve, 100));
         return;
     }
-    isInitializing = true; // 标记初始化中
+    isInitializing = true;
     try {
-        await initRag(); // 执行初始化
+        await initRag();
     } finally {
-        isInitializing = false; // 清除标记，无论成功与否
+        isInitializing = false;
     }
 }
 
 // 导出Vercel无服务器函数处理函数
 module.exports = async (req, res) => {
-    // 处理CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
-        return res.status(200).end(); // 处理预检请求
+        return res.status(200).end();
     }
 
     if (req.method!== 'POST') {
@@ -175,28 +175,26 @@ module.exports = async (req, res) => {
     }
 
     try {
-        await ensureRagInitialized(); // 确保RAG已初始化
+        await ensureRagInitialized();
         const { query, topK = 3 } = req.body;
 
-        // 执行RAG搜索
         const queryEmbedding = await model(query, { pooling: 'mean', normalize: true });
         const [distances, indices] = index.search(queryEmbedding.data, topK);
-        
-        // 过滤低相似度结果（距离阈值优化）
-        const relevantDocs = indices[0]
-            .map((i, idx) => chunks[i])
-            .filter((_, idx) => distances[0][idx] < 0.7); // 降低阈值提高召回率
 
-        return res.status(200).json({ 
+        const relevantDocs = indices[0]
+           .map((i, idx) => chunks[i])
+           .filter((_, idx) => distances[0][idx] < 0.7);
+
+        return res.status(200).json({
             relevantDocs: relevantDocs.map(doc => doc.text),
-            metadata: relevantDocs.map(doc => doc.metadata) // 返回元数据（可选）
+            metadata: relevantDocs.map(doc => doc.metadata)
         });
 
     } catch (error) {
         console.error('搜索处理错误:', error.stack);
-        return res.status(500).json({ 
-            error: '服务器内部错误', 
-            details: '请检查Vercel日志获取更多信息' 
+        return res.status(500).json({
+            error: '服务器内部错误',
+            details: '请检查Vercel日志获取更多信息'
         });
     }
 };
