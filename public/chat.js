@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isRegister = modalTitle.textContent === '注册';
 
         try {
-            const response = await fetch(isRegister ? '/register' : '/login', {
+            const response = await fetch(isRegister ? '/api/register' : '/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: username.value, password: password.value })
