@@ -3,7 +3,7 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background: url('https://upload.wikimedia.org/wikipedia/commons/7/74/Ruins_of_St._Paul%27s%2C_Macau.jpg') no-repeat center center fixed;
+    background: url('./images/R.jpg') no-repeat center center fixed;
     background-size: cover;
     color: #003366;
 }
